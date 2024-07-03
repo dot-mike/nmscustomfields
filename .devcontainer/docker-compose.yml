@@ -1,0 +1,84 @@
+x-env-global: &env-global
+  - &MYSQL_DATABASE "librenms"
+  - &MYSQL_USER "librenms"
+  - &MYSQL_PASSWORD "asupersecretpassword"
+  - &TZ "UTC"
+  - &PUID "1000"
+  - &PGID "1000"
+  - &LIBRENMS_VERSION "23.8.2"
+
+x-envlibrenms: &envlibrenms
+  MEMORY_LIMIT: "256M"
+  MAX_INPUT_VARS: "1000"
+  UPLOAD_MAX_SIZE: "16M"
+  OPCACHE_MEM_SIZE: "128"
+  REAL_IP_FROM: "0.0.0.0/32"
+  REAL_IP_HEADER: "X-Forwarded-For"
+  LOG_IP_VAR: "remote_addr"
+  CACHE_DRIVER: "redis"
+  SESSION_DRIVER: "redis"
+  REDIS_HOST: "redis"
+  LIBRENMS_SNMP_COMMUNITY: "librenmsdocker"
+  LIBRENMS_WEATHERMAP: "true"
+  LIBRENMS_WEATHERMAP_SCHEDULE: "*/5 * * * *"
+
+services:
+  app:
+    build:
+      context: .
+    image: librenms
+    command: sleep infinity
+    volumes:
+      - ../..:/workspaces:cached
+    tty: true
+    environment:
+      <<: *envlibrenms
+      TZ: *TZ
+      PUID: *PUID
+      PGID: *PGID
+      DB_HOST: "127.0.0.1"
+      DB_NAME: *MYSQL_DATABASE
+      DB_USER: *MYSQL_USER
+      DB_PASSWORD: *MYSQL_PASSWORD
+      DB_TIMEOUT: "60"
+      LIBRENMS_VERSION: *LIBRENMS_VERSION
+
+    network_mode: service:db
+
+  db:
+    image: mariadb:10.11
+    command:
+      - "mysqld"
+      - "--innodb-file-per-table=1"
+      - "--lower-case-table-names=0"
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+    volumes:
+      - "db:/var/lib/mysql"
+    environment:
+      TZ: *TZ
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_DATABASE: *MYSQL_DATABASE
+      MYSQL_USER: *MYSQL_USER
+      MYSQL_PASSWORD: *MYSQL_PASSWORD
+
+  redis:
+    image: redis:7.2-alpine
+    environment:
+      TZ: *TZ
+
+  snmpsim:
+    build:
+      context: snmpsim
+    image: snmpsim
+    ports:
+      - "1161:1161"
+    volumes:
+      - ./snmpsim/data:/usr/local/snmpsim/data
+    networks:
+      default:
+        aliases:
+          - snmpsim2
+
+volumes:
+  db:

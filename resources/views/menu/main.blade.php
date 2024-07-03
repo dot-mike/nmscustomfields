@@ -1,0 +1,1 @@
+<a href="{{ route('plugin.nmscustomfields.customfield.index') }}"><i class="fa fa-steam fa-fw fa-lg" aria-hidden="true"></i> Custom Fields Plugin</a>

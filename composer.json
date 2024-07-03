@@ -1,0 +1,38 @@
+{
+  "name": "dot-mike/nmscustomfields",
+  "description": "LibreNMS plugin to add custom fields to devices",
+  "version": "1.0.0",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "dot-mike",
+      "email": "d0tmike@pm.me"
+    }
+  ],
+  "minimum-stability": "stable",
+  "autoload": {
+    "psr-4": {
+      "DotMike\\NmsCustomFields\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "DotMike\\NmsCustomFields\\": "src"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "DotMike\\NmsCustomFields\\Providers\\CustomFieldsProvider"
+      ]
+    }
+  },
+  "archive": {
+    "exclude": [
+      ".devcontainer",
+      ".vscode",
+      "screenshots"
+    ]
+  }
+}

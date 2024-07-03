@@ -1,0 +1,143 @@
+{
+	"name": "codespace-librenms",
+	"dockerComposeFile": [
+		"docker-compose.yml"
+	],
+	"service": "app",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	"remoteUser": "vscode",
+	"remoteEnv": {
+		"PATH": "${containerEnv:PATH}:${containerEnv:LIBRENMS_FOLDER}",
+		"LOCAL_WORKSPACE_FOLDER": "/workspaces/${localWorkspaceFolderBasename}",
+		"LIBRENMS_FOLDER": "/var/www/html/librenms"
+	},
+	"containerEnv": {
+		"LOCAL_WORKSPACE_FOLDER": "/workspaces/${localWorkspaceFolderBasename}",
+		"LIBRENMS_FOLDER": "/var/www/html/librenms"
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"xdebug.php-debug",
+				"bmewburn.vscode-intelephense-client",
+				"ms-azuretools.vscode-docker",
+				"p1c2u.docker-compose",
+				"ryannaddy.laravel-artisan",
+				"amiralizadeh9480.laravel-extra-intellisense",
+				"georgykurian.laravel-ide-helper",
+				"mtxr.sqltools-driver-mysql"
+			],
+			"settings": {
+				"php.suggest.basic": false,
+				"php.validate.enable": true,
+				"php.validate.run": "onSave",
+				"artisan.location": [
+					"${containerEnv:LIBRENMS_FOLDER}/artisan"
+				],
+				"intelephense.environment.documentRoot": "${localWorkspaceFolder}",
+				"intelephense.environment.includePaths": [
+					"${containerEnv:LIBRENMS_FOLDER}"
+				],
+				"sqltools.connections": [
+					{
+						"driver": "mysql",
+						"name": "librenms",
+						"server": "${containerEnv:DB_HOST}",
+						"port": 3306,
+						"database": "${containerEnv:DB_NAME}",
+						"user": "${containerEnv:DB_USER}",
+						"password": "${containerEnv:DB_PASSWORD}",
+						"multipleStatements": true
+					}
+				],
+				"launch": {
+					"version": "0.2.0",
+					"configurations": [
+						{
+							"name": "Launch LibreNMS",
+							"type": "php",
+							"request": "launch",
+							"envFile": "${containerEnv:LIBRENMS_FOLDER}/.env",
+							"cwd": "${containerEnv:LIBRENMS_FOLDER}",
+							"program": "${containerEnv:LIBRENMS_FOLDER}/artisan",
+							"args": [
+								"serve"
+							],
+							"port": 9000,
+							"serverReadyAction": {
+								"pattern": "Server running on",
+								"uriFormat": "http://localhost:8000",
+								"action": "openExternally"
+							}
+						},
+						{
+							"name": "Listen for XDebug",
+							"type": "php",
+							"request": "launch",
+							"port": 9003
+						}
+					],
+					"compounds": []
+				},
+				"tasks": {
+					"version": "2.0.0",
+					"tasks": [
+						{
+							"label": "artisan",
+							"type": "shell",
+							"command": "php",
+							"args": [
+								"artisan",
+								"${input:command}"
+							],
+							"problemMatcher": [],
+							"group": {
+								"kind": "build",
+								"isDefault": true
+							},
+							"cwd": "${containerEnv:LIBRENMS_FOLDER}"
+						},
+						{
+							"label": "Artisan Publish Views",
+							"type": "shell",
+							"command": "php",
+							"args": [
+								"artisan",
+								"vendor:publish",
+								"--tag=views"
+							],
+							"problemMatcher": [],
+							"cwd": "${containerEnv:LIBRENMS_FOLDER}"
+						}
+					],
+					"inputs": [
+						{
+							"type": "pickString",
+							"id": "command",
+							"description": "Choose an artisan command",
+							"options": [
+								"cache:clear",
+								"config:cache",
+								"config:clear",
+								"db:seed",
+								"migrate",
+								"migrate:fresh",
+								"migrate:install",
+								"migrate:refresh",
+								"migrate:reset",
+								"migrate:rollback",
+								"migrate:status",
+								"optimize",
+								"route:cache",
+								"route:clear",
+								"view:clear"
+							]
+						}
+					]
+				}
+			},
+		}
+	},
+	"postCreateCommand": "sudo mkdir -p /var/log/xdebug && sudo chmod -R 777 /var/log/xdebug",
+	"postStartCommand": "bash .devcontainer/postStart.sh"
+}
