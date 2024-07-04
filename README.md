@@ -58,3 +58,74 @@ Navigate to a device page and you will see the custom fields section where you w
 ![Edit Custom Fields](/screenshots/edit-custom-fields.png?raw=true)
 ![Edit Custom Field Values](/screenshots/edit-custom-field-values.png?raw=true)
 ![Device Custom Fields](/screenshots/device-custom-fields.png?raw=true)
+
+## API Documentation
+
+The plugin also adds API endpoints to manage the custom fields for devices.
+
+### `Devices` API
+
+#### List Custom Fields
+
+```
+GET /api/v0/devices/{device}/customfields
+```
+
+- **Description**: Retrieves a list of custom fields for a specified device.
+- **Parameters**:
+  - `{device}`: The identifier of the device.
+
+#### Show Custom Field
+
+```
+GET /api/v0/devices/{device}/customfields/{customdevicefield}
+```
+
+- **Description**: Retrieves details of a specific custom field for a specified device.
+- **Parameters**:
+  - `{device}`: The identifier of the device.
+  - `{customdevicefield}`: The identifier of the custom field.
+
+#### Delete Custom Field
+
+```
+DELETE /api/v0/devices/{device}/customfields/{customdevicefield}
+```
+
+- **Description**: Deletes a specific custom field for a specified device.
+- **Parameters**:
+  - `{device}`: The identifier of the device.
+  - `{customdevicefield}`: The identifier of the custom field.
+
+#### Update Custom Field
+
+```
+PATCH /api/v0/devices/{device}/customfields/{customdevicefield}
+```
+
+- **Description**: Partially updates a specific custom field for a specified device.
+- **Parameters**:
+  - `{device}`: The identifier of the device.
+  - `{customdevicefield}`: The identifier of the custom field.
+  ```json
+  {
+    "value": "value"
+  }
+  ```
+
+#### Upsert Custom Field
+
+```
+PUT / POST /api/v0/devices/{device}/customfields
+```
+
+- **Description**: Creates or updates a custom field for a specified device.
+- **Parameters**:
+  - `{device}`: The identifier of the device.
+  - Request body containing the custom field data.
+  ```json
+  {
+    "custom_field": "field_name or field_id",
+    "value": "value"
+  }
+  ```
