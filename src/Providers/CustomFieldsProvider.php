@@ -90,6 +90,10 @@ class CustomFieldsProvider extends ServiceProvider
             \DotMike\NmsCustomFields\Http\Middleware\ResolveDevice::class,
         ]);
 
+        Route::middlewareGroup('resolve.customdevicefield', [
+            \DotMike\NmsCustomFields\Http\Middleware\ResolveCustomField::class,
+        ]);
+
         View::composer('nmscustomfields::*', function ($view) {
             $view->with('nmscustomfields_version', $this->getVersion());
         });

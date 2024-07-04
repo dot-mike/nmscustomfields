@@ -2,6 +2,7 @@
 
 namespace DotMike\NmsCustomFields\Http\Controllers;
 
+use DotMike\NmsCustomFields\Models\CustomField;
 use DotMike\NmsCustomFields\Models\CustomFieldValue;
 use DotMike\NmsCustomFields\Models\CustomFieldDevice;
 
@@ -40,9 +41,22 @@ class DeviceCustomFieldController extends Controller
         }
     }
 
-    public function show(Request $request, Device $device)
+    // Display the details of a custom field device
+    // GET /device/{device}/customfields/devicefield/{customFieldDevice}
+    public function show(Request $request, Device $device, CustomFieldDevice $customdevicefield)
     {
-        return redirect()->route('plugin.nmscustomfields.device.index', $device);
+        if ($request->expectsJson()) {
+            // find the value of the custom field
+            $customdevicefield->load('customFieldValue');
+            return response()->json([
+                'id' => $customdevicefield->id,
+                'custom_field_id' => $customdevicefield->custom_field_id,
+                'custom_field_name' => $customdevicefield->customField->name,
+                'value' => $customdevicefield->customFieldValue->value,
+            ]);
+        } else {
+            return redirect()->route('plugin.nmscustomfields.device.index', $device);
+        }
     }
 
     // show form to add custom field to device
@@ -99,14 +113,26 @@ class DeviceCustomFieldController extends Controller
         Gate::authorize('admin');
 
         // validate the request
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'value' => 'required',
         ]);
+
+        if ($validator->fails()) {
+            if ($request->expectsJson()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            } else {
+                return redirect()->route('plugin.nmscustomfields.device.index', $device)->withErrors($validator);
+            }
+        }
 
         $customdevicefield->customFieldValue->value = $request->value;
         $customdevicefield->customFieldValue->save();
 
-        return redirect()->route('plugin.nmscustomfields.device.index', $device);
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        } else {
+            return redirect()->route('plugin.nmscustomfields.device.index', $device);
+        }
     }
 
     // Edit value of a custom field for a device
@@ -139,6 +165,48 @@ class DeviceCustomFieldController extends Controller
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
+        } else {
+            return redirect()->route('plugin.nmscustomfields.device.index', $device);
+        }
+    }
+
+    // Upsert a custom field for a device
+    // PUT /device/{device}/customfields/devicefield
+    public function upsert(Request $request, Device $device)
+    {
+        Gate::authorize('admin');
+
+        $validator = Validator::make($request->all(), [
+            'custom_field' => ['required', $this->customFieldExists($device)],
+            'value' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            if ($request->expectsJson()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            } else {
+                return redirect()->route('plugin.nmscustomfields.device.index', $device)->withErrors($validator);
+            }
+        }
+
+        // Resolve custom_field to ID if it is a name
+        $customField = $request->input('custom_field');
+        if (!is_numeric($customField)) {
+            $customField = CustomField::where('name', $customField)->first()->id;
+        }
+
+        $device->customFields()->syncWithoutDetaching($customField);
+        $device = $device->fresh();
+        $customFieldDevice = $device->customFieldDevices->where('custom_field_id', $customField)->first();
+
+        CustomFieldValue::updateOrCreate(
+            ['custom_field_device_id' => $customFieldDevice->id],
+            ['value' => $request->input('value')]
+        );
+
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'custom_field_device_id' => $customFieldDevice->id]);
         } else {
             return redirect()->route('plugin.nmscustomfields.device.index', $device);
         }
@@ -225,7 +293,6 @@ class DeviceCustomFieldController extends Controller
 
     protected function ensureDeviceDoesNotHaveCustomField($device, $custom_field_id)
     {
-        //return $device->customFieldDevices->contains('custom_field_id', $custom_field_id);
         return static function ($validator) use ($device, $custom_field_id) {
             $validator->errors()->addIf(
                 $device->customFieldDevices->contains('custom_field_id', $custom_field_id),
@@ -235,6 +302,18 @@ class DeviceCustomFieldController extends Controller
         };
     }
 
+    protected function customFieldExists(Device $device)
+    {
+        return function ($attribute, $value, $fail) use ($device) {
+            $customField = is_numeric($value)
+                ? CustomField::find($value)
+                : CustomField::where('name', $value)->first();
+
+            if (!$customField) {
+                $fail('The selected ' . $attribute . ' is invalid.');
+            }
+        };
+    }
 
     protected function handleNotFound(Request $request, Device $device)
     {
