@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2024-10-18
+
+### Added
+
+- Show both hostname and sysName with clickable links in the custom field list on plugin page.
+
+### Fixed
+
+- Fix modal state reset [#2](../../issues/2)
+- Fix bulk delete so it does not delet all values. Behaves correctly.
+- Fix JS code to use let instead of var.
+
 ## [1.0.3] - 2024-10-18
 
 ### Added
