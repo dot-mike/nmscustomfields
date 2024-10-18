@@ -228,28 +228,27 @@ class DeviceCustomFieldController extends Controller
         $device_ids = $request->device_ids;
         $custom_field_id = $request->custom_field_id;
         $custom_field_value = $request->custom_field_value;
-        // the device_id list is the master list of devices
-        // that is supposed to have this field with this value
-        // if any device is missing the field, we need to create it
-        // if any device has the field but with a different value, we need to update it
-        // if any device has this field but no in the array of device_ids, we need to delete it
+
+        // device_id contains a list of all devices that should have this custom field
+        // we need to compare this list with the list of devices that already have this custom field
+        // and update the custom field value accordingly
+        // if the custom field is not present, we need to create it
+        // if the custom field is present but with a different value, we need to update it
+        // if the custom field is present for the device but not in the list, we need to delete it
         $customFieldDevice = CustomFieldDevice::where('custom_field_id', $custom_field_id)
+            ->whereIn('device_id', $device_ids)
             ->get();
 
-        $customFieldDevice->each(function ($customFieldDevice) use ($device_ids, $custom_field_value) {
-            if (!in_array($customFieldDevice->device_id, $device_ids)) {
-                $customFieldDevice->customFieldValue->delete();
-                $customFieldDevice->delete();
-            } elseif ($customFieldDevice->customFieldValue->value != $custom_field_value) {
-                $customFieldDevice->customFieldValue->value = $custom_field_value;
-                $customFieldDevice->customFieldValue->save();
-            }
+        $customFieldDevice->each(function ($customFieldDevice) use ($custom_field_value) {
+            $customFieldDevice->customFieldValue->value = $custom_field_value;
+            $customFieldDevice->customFieldValue->save();
         });
 
         $device_ids = array_diff($device_ids, $customFieldDevice->pluck('device_id')->toArray());
-        $device_ids = Device::whereIn('device_id', $device_ids)->get();
-        $device_ids->each(function ($device) use ($custom_field_id, $custom_field_value) {
-            $device->customFields()->attach($custom_field_id);
+
+        $device_ids = collect($device_ids)->map(function ($device_id) use ($custom_field_id, $custom_field_value) {
+            $device = Device::find($device_id);
+            $device->customFields()->syncWithoutDetaching($custom_field_id);
             $device = $device->fresh();
             $customFieldDevice = $device->customFieldDevices->where('custom_field_id', $custom_field_id)->first();
             CustomFieldValue::create([
@@ -257,8 +256,6 @@ class DeviceCustomFieldController extends Controller
                 'value' => $custom_field_value,
             ]);
         });
-
-
 
         return response()->json(['success' => true]);
     }

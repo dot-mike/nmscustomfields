@@ -18,7 +18,8 @@
                     <thead>
                         <tr>
                             <th data-column-id="device_id" data-identifier="true" data-type="numeric" data-visible="false">Device ID</th>
-                            <th data-column-id="hostname">Device</th>
+                            <th data-column-id="hostname" data-formatter="link">hostname</th>
+                            <th data-column-id="sysName" data-formatter="link">sysName</th>
                             <th data-column-id="custom_field_value">Field Value</th>
                             <th data-column-id="commands" data-formatter="commands" data-sortable="false">Actions</th>
                         </tr>
@@ -33,8 +34,8 @@
 </div>
 
 <!-- Bulk Edit Modal -->
-<div class="modal fade" id="bulkEditModal" tabindex="-1" aria-labelledby="bulkEditModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade" id="bulkEditModal" tabindex="-1" role="dialog" aria-labelledby="bulkEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="bulkEditModalLabel">Bulk Edit Devices</h5>
@@ -82,19 +83,17 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
     var fieldEditUrl = "{!! route('plugin.nmscustomfields.devicefield.edit', ['device' => ':device', 'customdevicefield' => ':customfield']) !!}";
     var fieldDeleteUrl = "{!! route('plugin.nmscustomfields.devicefield.destroy', ['device' => ':device', 'customdevicefield' => ':customfield']) !!}";
 
-    var selected_field_name = '';
-
     $(function() {
         var grid = $("#device-customfields-table");
 
         grid.on("initialized.rs.jquery.bootgrid", function(e) {
-            var device_id = $("#device_id");
-            var custom_field_id = $("#custom_field_id");
-            var grid = $("#device-customfields-table");
+            let device_id = $("#device_id");
+            let custom_field_id = $("#custom_field_id");
+            let grid = $("#device-customfields-table");
 
             // create customfield object for select2
             // initalize filter
-            var customfield_object = {
+            let customfield_object = {
                 id: "{{ $customfield->id }}",
                 text: "{{ $customfield->name }}"
             }
@@ -117,12 +116,13 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
 
             custom_field_id.on("select2:select", function(e) {
                 grid.bootgrid("reload");
-                selected_field_name = e.params.data.text;
             }).on("select2:clearing", function(e) {
                 e.preventDefault();
             });
         })
+
         grid.bootgrid({
+            url: '{{ route("plugin.nmscustomfields.table.customfieldvalues") }}',
             ajax: true,
             rowCount: [25, 50, 100, 250, -1],
             columnSelection: true,
@@ -139,13 +139,18 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
 
             templates: {
                 header: "{!! nl2br($escapedHeaderTemplate) !!}",
-                noResults: "<tr><td colspan=\"@{{ctx.columns}}\" class=\"no-results\">No results found for <span id=\"bootgrid_selected_field_name\"></span>. <button id=\"add-devices-btn\" class=\"btn btn-primary\">Add devices</button></td></tr>"
+                noResults: "<tr><td colspan=\"@{{ctx.columns}}\" class=\"no-results\">No results found for field: <span id=\"bootgrid_selected_field_name\"></span><button id=\"add-devices-btn\" class=\"btn btn-primary\">Add devices</button></td></tr>"
             },
 
             formatters: {
+                "link": function(column, row) {
+                    let url = "{{ url('device') }}" + '/' + row.device_id;
+                    return "<a href=\"" + url + "\">" + row[column.id] + "</a>";
+                },
                 "commands": function(column, row) {
-                    return "<button type=\"button\" class=\"btn btn-xs btn-default command-edit\" data-row-id=\"" + row.device_id + "\"><span class=\"glyphicon glyphicon-edit\"></span></button> " +
-                        "<button type=\"button\" class=\"btn btn-xs btn-default command-delete\" data-row-id=\"" + row.device_id + "\"><span class=\"glyphicon glyphicon-trash\"></span></button>";
+                    let editUrl = fieldEditUrl.replace(':device', row.device_id).replace(':customfield', row.custom_field_value_id);
+                    return "<a href=\"" + editUrl + "\" class=\"btn btn-xs btn-default command-edit\"><span class=\"glyphicon glyphicon-edit\"></span > </a> " +
+                        "<button class=\"btn btn-xs btn-default command-delete\" x-data-device_id=\"" + row.device_id + "\" x-data-custom_field_value_id=\"" + row.custom_field_value_id + "\"><span class=\"glyphicon glyphicon-trash\"></span></button>";
                 }
             },
 
@@ -154,33 +159,42 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
                 request.custom_field_id = $("#custom_field_id").val();
                 return request;
             },
-
-            url: '{{ route("plugin.nmscustomfields.table.customfieldvalues") }}',
         }).on("loaded.rs.jquery.bootgrid", function(e) {
             $('#bulk-edit-btn').prop('disabled', true);
             $('#bulk-delete-btn').prop('disabled', true);
 
-            // set the selected field name when no results are found
-            if (grid.bootgrid("getTotalRowCount") != 0) {
-                /* Executes after data is loaded and rendered */
-                grid.find(".command-edit").on("click", function(e) {
-                    var row_index = $(this).closest('tr').index();
-                    var row = grid.bootgrid("getCurrentRows")[row_index];
-                    var url = fieldEditUrl.replace(':device', row.device_id).replace(':customfield', row.custom_field_value_id);
-                    window.location.href = url;
-                }).end().find(".command-delete").on("click", function(e) {
-                    var row_index = $(this).closest('tr').index();
-                    var row = grid.bootgrid("getCurrentRows")[row_index];
-                    var url = fieldDeleteUrl.replace(':device', row.device_id).replace(':customfield', row.custom_field_value_id);
-                    window.location.href = url;
-                });
-            } else {
+            // log total number of rows
+            let total = grid.bootgrid("getTotalRowCount");
+            if (total === 0) {
+                let selected_field_name = $('#custom_field_id option:selected').text();
+                // bind add devices button to open bulk edit modal
                 $('#bootgrid_selected_field_name').text(selected_field_name);
 
-                $('#add-devices-btn').on('click', function() {
+                $("#add-devices-btn").on('click', function(event) {
                     $('#bulkEditModal').modal('show');
                 });
             }
+
+            $("button.command-delete").on("click", function() {
+                // confirm delete
+                if (!confirm("Are you sure you want to delete this custom field value?")) {
+                    return;
+                }
+
+                let device_id = $(this).attr('x-data-device_id');
+                let custom_field_value_id = $(this).attr('x-data-custom_field_value_id');
+                let url = fieldDeleteUrl.replace(':device', device_id).replace(':customfield', custom_field_value_id);
+                $.ajax({
+                    type: "DELETE",
+                    url: url,
+                    success: function(response) {
+                        grid.bootgrid("reload");
+                    },
+                    error: function(response) {
+                        console.log(response);
+                    }
+                });
+            });
 
         }).on("selected.rs.jquery.bootgrid", function(e, rows) {
             // Enable bulk edit button when rows are selected
@@ -197,15 +211,19 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
             $('#bulkEditModal').modal('show');
         });
 
+        // Handle bulk delete button click
         $("div#manage-device-customfields").on('click', '#bulk-delete-btn', function() {
-            var selectedRowIds = grid.bootgrid("getSelectedRows");
-            var rows = grid.bootgrid("getCurrentRows");
-            var selectedRows = rows.filter(row => selectedRowIds.includes(row.device_id));
-            var device_ids = selectedRows.map(row => row.device_id).join(",");
+            let selectedRowIds = grid.bootgrid("getSelectedRows");
+            let rows = grid.bootgrid("getCurrentRows");
+            let selectedRows = rows.filter(row => selectedRowIds.includes(row.device_id));
+            if (selectedRows.length === 0) {
+                return;
+            }
+            let device_ids = selectedRows.map(row => row.device_id).join(",");
 
-            var custom_field_id = $("#custom_field_id").val();
-            var url = "{{ route('plugin.nmscustomfields.devicefield.bulkdestroy') }}";
-            var data = {
+            let custom_field_id = $("#custom_field_id").val();
+            let url = "{{ route('plugin.nmscustomfields.devicefield.bulkdestroy') }}";
+            let data = {
                 device_ids: device_ids,
                 custom_field_id: custom_field_id
             };
@@ -223,26 +241,9 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
             });
         });
 
+
         // bind shown to modal to focus on input field
         $('#bulkEditModal').on('shown.bs.modal', function() {
-            var selectedRowIds = grid.bootgrid("getSelectedRows");
-
-            var inputField = $('#custom-field-value');
-            var multipleValuesWarning = 'Warning: Multiple different values selected. This will override all selected devices with this value.';
-
-            if (selectedRowIds.length !== 0) {
-                var rows = grid.bootgrid("getCurrentRows");
-                var selectedRows = rows.filter(row => selectedRowIds.includes(row.device_id));
-                var uniqueValues = [...new Set(selectedRows.map(row => row.custom_field_value))];
-                if (uniqueValues.length === 1) {
-                    inputField.val(uniqueValues[0]);
-                    inputField.attr('placeholder', '');
-                } else {
-                    inputField.val('');
-                    $('#alert-container').text(multipleValuesWarning).removeClass('hidden');
-                }
-            }
-
             // Initialize Select2 for the multi-select field
             $('#select-devices').select2({
                 placeholder: "Search for devices",
@@ -254,32 +255,49 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
                 }
             });
 
-            // Populate Select2 with selected devices
-            var selectDevices = $('#select-devices');
+            let selectDevices = $('#select-devices');
             selectDevices.empty();
-            selectedRows.forEach(function(row) {
-                var option = new Option(row.hostname, row.device_id, true, true);
-                selectDevices.append(option).trigger('change');
-            });
 
-            // set the selected device ids in the hidden input field
-            $('#device_ids').val(selectedRows.map(row => row.device_id).join(","));
+            let inputField = $('#custom-field-value');
+            inputField.val('');
+
+            let selectedRowIds = grid.bootgrid("getSelectedRows");
+            let multipleValuesWarning = 'Warning: Multiple different values selected. This will override all selected devices with this value.';
+
+            if (selectedRowIds.length !== 0) {
+                let rows = grid.bootgrid("getCurrentRows");
+                let selectedRows = rows.filter(row => selectedRowIds.includes(row.device_id));
+                let uniqueValues = [...new Set(selectedRows.map(row => row.custom_field_value))];
+                if (uniqueValues.length === 1) {
+                    inputField.val(uniqueValues[0]);
+                    inputField.attr('placeholder', '');
+                } else {
+                    inputField.val('');
+                    $('#alert-container').text(multipleValuesWarning).removeClass('hidden');
+                }
+
+                // Populate Select2 with selected devices
+                selectedRows.forEach(function(row) {
+                    let option = new Option(row.hostname, row.device_id, true, true);
+                    selectDevices.append(option).trigger('change');
+                });
+
+                // set the selected device ids in the hidden input field
+                $('#device_ids').val(selectedRows.map(row => row.device_id).join(","));
+            }
 
             $('#custom-field-value').focus();
             // set the blkedit_custom_field_id to the value of custom_field_id
             $('#blkedit_custom_field_id').val($("#custom_field_id").val());
         });
 
-        // Handle add field to devices button click
-        // when no results are found
-        $("div#manage-device-customfields").on('click', '#add-devices-btn', function() {
-            $('#bulkEditModal').modal('show');
-        });
-
         $("div#bulkEditModal").on('click', '#save-bulk-edit-btn', function() {
-            var form = $('#bulk-edit-form');
-            var url = form.attr('action');
-            var data = form.serialize();
+            let form = $('#bulk-edit-form');
+            let url = form.attr('action');
+            let data = form.serialize();
+            // log post values
+            console.log(data);
+            /// return
             $.ajax({
                 type: "POST",
                 url: url,
@@ -298,6 +316,8 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
             e.preventDefault();
             grid.bootgrid("search", $("#hostname").val());
         });
+
+
     });
 </script>
 @endsection

@@ -48,12 +48,13 @@ class CustomFieldValueController extends TableController
             ->when($request->input('device_id'), function ($query, $device_id) {
                 return $query->where('device_id', $device_id);
             });
+
         // if we have searchPhrase then we need to filter the results on device hostname, custom field value
         if ($request->input('searchPhrase')) {
             $searchPhrase = '%' . $request->input('searchPhrase') . '%';
 
             $query->whereHas('device', function ($query) use ($searchPhrase) {
-                $query->where('hostname', 'like', $searchPhrase);
+                $query->where('hostname', 'like', $searchPhrase)->orWhere('sysName', 'like', $searchPhrase);
             })->orWhereHas('customFieldValue', function ($query) use ($searchPhrase) {
                 $query->where(
                     'value',
@@ -62,6 +63,7 @@ class CustomFieldValueController extends TableController
                 );
             });
         }
+
         return $query;
     }
 
@@ -75,6 +77,7 @@ class CustomFieldValueController extends TableController
             return [
                 'device_id' => $item->device_id,
                 'hostname' => $item->device->hostname,
+                'sysName' => $item->device->sysName,
                 'custom_field_id' => $item->custom_field_id,
                 'custom_field_value' => $item->customFieldValue->value,
                 'custom_field_value_id' => $item->customFieldValue->id,
