@@ -14,6 +14,7 @@ use App\Models\Device;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Blade;
 
 class CustomFieldsProvider extends ServiceProvider
 {
@@ -43,6 +44,13 @@ class CustomFieldsProvider extends ServiceProvider
 
         $manager->publishHook('nmscustomfields', MenuEntryHook::class, MenuHook::class);
         $manager->publishHook('nmscustomfields', DeviceOverviewHook::class, DeviceHook::class);
+
+
+        Blade::directive('customFieldValue', function ($expression) {
+            return "<?php echo customFieldValue($expression); ?>";
+        });
+
+        $this->loadHelpers();
     }
 
     protected function registerDynamicRelations(): void
@@ -104,5 +112,13 @@ class CustomFieldsProvider extends ServiceProvider
         $composerFile = __DIR__ . '/../../composer.json';
         $composerData = json_decode(file_get_contents($composerFile), true);
         return $composerData['version'] ?? 'unknown';
+    }
+
+    protected function loadHelpers()
+    {
+        $helperPath = __DIR__ . '/../Helpers/custom_field_helpers.php';
+        if (file_exists($helperPath)) {
+            require_once $helperPath;
+        }
     }
 }

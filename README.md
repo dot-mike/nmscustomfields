@@ -59,6 +59,30 @@ Navigate to a device page and you will see the custom fields section where you w
 ![Edit Custom Field Values](/screenshots/edit-custom-field-values.png?raw=true)
 ![Device Custom Fields](/screenshots/device-custom-fields.png?raw=true)
 
+## Helper functions
+
+The `get_custom_field_value` helper is used to retrieve a custom field's value for a specific device.
+
+### Usage
+
+You can use the `get_custom_field_value` helper in your Blade templates to access custom fields associated with a device. This is especially useful for displaying dynamic content based on custom field values.
+
+### Syntax
+
+```php
+get_custom_field_value(Device $device, string $fieldName): string|null
+```
+
+### Example Usage
+
+```php
+{{ get_custom_field_value($device, 'custom_field_name') }}
+
+@if ('yes' == get_custom_field_value($device, 'description'))
+<b>hello</b>
+@endif
+```
+
 ## API Documentation
 
 The plugin also adds API endpoints to manage the custom fields for devices.
