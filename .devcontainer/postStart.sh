@@ -41,6 +41,7 @@ echo "Setting up librenms"
 export $(grep -v '^#' .env | xargs)
 php lnms --force -n migrate || true
 php lnms -n user:add -p librenms -r admin -n librenms >/dev/null || true # add user if not exists
+php lnms -n user:add -p admin -r admin -n admin >/dev/null || true # add user if not exists
 
 echo "Adding snmpsim device"
 php lnms -n device:add -r 1161 -2 -c demo -- snmpsim >/dev/null || true # add device if not exists

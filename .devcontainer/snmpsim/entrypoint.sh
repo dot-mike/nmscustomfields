@@ -1,3 +1,3 @@
 #!/bin/sh
 
-snmpsimd.py "$@"
+snmpsim-command-responder-lite "$@"
