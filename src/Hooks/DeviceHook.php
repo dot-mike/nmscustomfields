@@ -8,7 +8,7 @@ use App\Plugins\Hooks\DeviceOverviewHook;
 
 class DeviceHook extends DeviceOverviewHook
 {
-    public $view = 'nmscustomfields::device.overview';
+    public string $view = 'nmscustomfields::device.overview';
 
     public function data($device): array
     {

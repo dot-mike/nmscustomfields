@@ -6,5 +6,5 @@ use App\Plugins\Hooks\MenuEntryHook;
 
 class MenuHook extends MenuEntryHook
 {
-    public $view = 'nmscustomfields::menu.main';
+    public string $view = 'nmscustomfields::menu.main';
 }
