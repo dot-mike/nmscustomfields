@@ -5,7 +5,7 @@ x-env-global: &env-global
   - &TZ "UTC"
   - &PUID "1000"
   - &PGID "1000"
-  - &LIBRENMS_VERSION "23.8.2"
+  - &LIBRENMS_VERSION "24.9.1"
 
 x-envlibrenms: &envlibrenms
   MEMORY_LIMIT: "256M"
