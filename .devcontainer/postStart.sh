@@ -36,6 +36,10 @@ echo \$config[\'db_pass\'] = \'$DB_PASSWORD\'\; | tee -a config.php
 echo \$config[\'db_name\'] = \'$DB_NAME\'\; | tee -a config.php
 
 echo "Setting up librenms"
+
+# seed the database
+php artisan db:seed --force
+
 # load .env as environment variables
 # .env does not work for some reason
 export $(grep -v '^#' .env | xargs)
