@@ -6,7 +6,7 @@ use DotMike\NmsCustomFields\Models\CustomField;
 
 use App\Plugins\Hooks\DeviceOverviewHook;
 
-class DeviceHook extends DeviceOverviewHook
+class DeviceOverview extends DeviceOverviewHook
 {
     public string $view = 'nmscustomfields::device.overview';
 

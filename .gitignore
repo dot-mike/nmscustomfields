@@ -1,0 +1,6 @@
+# Composer dependencies
+/vendor/
+/composer.lock
+
+# Laravel specific
+/.env

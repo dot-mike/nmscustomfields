@@ -3,12 +3,13 @@
 namespace DotMike\NmsCustomFields\Providers;
 
 
-use DotMike\NmsCustomFields\Hooks\MenuHook;
-use DotMike\NmsCustomFields\Hooks\DeviceHook;
+use DotMike\NmsCustomFields\Hooks\MenuEntry;
+use DotMike\NmsCustomFields\Hooks\DeviceOverview;
 
-use App\Plugins\Hooks\MenuEntryHook;
-use App\Plugins\Hooks\DeviceOverviewHook;
-use App\Plugins\PluginManager;
+use LibreNMS\Interfaces\Plugins\PluginManagerInterface;
+use LibreNMS\Interfaces\Plugins\Hooks\MenuEntryHook;
+use LibreNMS\Interfaces\Plugins\Hooks\DeviceOverviewHook;
+
 use App\Models\Device;
 
 use Illuminate\Support\ServiceProvider;
@@ -34,16 +35,22 @@ class CustomFieldsProvider extends ServiceProvider
      *
      * @return void
      */
-    public function boot(PluginManager $manager): void
+    public function boot(PluginManagerInterface $pluginManager): void
     {
+        $pluginName = 'nmscustomfields';
+        $pluginManager->publishHook($pluginName, MenuEntryHook::class, MenuEntry::class);
+        $pluginManager->publishHook($pluginName, DeviceOverviewHook::class, DeviceOverview::class);
+
+        // if plugin is disabled, don't boot it
+        if (! $pluginManager->pluginEnabled($pluginName)) {
+            return;
+        }
+
         $this->loadRoutesFrom(__DIR__ . '/../../routes/web.php');
         $this->loadRoutesFrom(__DIR__ . '/../../routes/api.php');
-        $this->loadViewsFrom(__DIR__ . '/../../resources/views', 'nmscustomfields');
-        $this->loadTranslationsFrom(__DIR__ . '/../../resources/lang', 'nmscustomfields');
+        $this->loadViewsFrom(__DIR__ . '/../../resources/views', $pluginName);
+        $this->loadTranslationsFrom(__DIR__ . '/../../resources/lang', $pluginName);
         $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
-
-        $manager->publishHook('nmscustomfields', MenuEntryHook::class, MenuHook::class);
-        $manager->publishHook('nmscustomfields', DeviceOverviewHook::class, DeviceHook::class);
 
 
         Blade::directive('customFieldValue', function ($expression) {
