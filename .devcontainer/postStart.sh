@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LIBRENMS_VERSION=${LIBRENMS_VERSION:-23.8.1}
+LIBRENMS_VERSION=${LIBRENMS_VERSION:-24.9.1}
 
 # env LIBRENMS_FOLDER is the folder where librenms is installed
 LIBRENMS_FOLDER_BASE=$(dirname $(realpath $LIBRENMS_FOLDER))
