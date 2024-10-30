@@ -153,3 +153,52 @@ PUT / POST /api/v0/devices/{device}/customfields
     "value": "value"
   }
   ```
+
+
+### `customfields` API
+
+#### List All defined Custom Fields
+
+```
+GET /api/v0/customfields
+```
+
+- **Description**: Retrieves a list of custom fields defined in the system.
+
+#### Query Custom Fields
+
+```
+GET /api/v0//customfields/query?name={custom_field_name}&value={custom_field_value}&fields={device_fields}&perPage=15&page=1
+```
+
+- **Description**: Retrieves a list of custom fields with optional filter.
+- **Parameters**:
+  - `{custom_field_name}`: The name of the custom field to filter by.
+  - `{custom_field_value}`: Optionally filter by the value of the custom field.
+  - `{device_fields}`: Optionally include device fields in the response. Defaults to 'device_id', 'hostname', 'sysName', 'ip', 'display', 'overwrite_ip', 'disabled', 'ignore'
+  - `perPage`: The number of items to display per page.
+  - `page`: The page number to display.
+
+Example output:
+```json
+{
+  "current": 1,
+  "rowCount": 1,
+  "rows": [
+    {
+      "device_id": 2,
+      "hostname": "snmpsim2",
+      "sysName": "zeus2",
+      "ip": null,
+      "display": null,
+      "overwrite_ip": null,
+      "disabled": 0,
+      "ignore": 0,
+      "id": 8,
+      "custom_field_id": 1,
+      "custom_field_value": "testing2"
+    }
+  ],
+  "total": 1
+}
+```
