@@ -3,12 +3,13 @@
 namespace DotMike\NmsCustomFields\Http\Controllers;
 
 use DotMike\NmsCustomFields\Models\CustomField;
+use DotMike\NmsCustomFields\Models\CustomFieldDevice;
 
 use Illuminate\Routing\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 use Gate;
-use Session;
 use Validator;
 
 class CustomFieldController extends Controller
@@ -23,6 +24,93 @@ class CustomFieldController extends Controller
         $customfields = CustomField::all();
         return view('nmscustomfields::customfield.main', compact('customfields'));
     }
+
+    // return all custom fields as json
+    // GET /api/v0/devices/customfields
+    public function api_index(Request $request)
+    {
+        $customfields = CustomField::all();
+        return response()->json($customfields);
+    }
+
+    // query custom fields as json
+    // GET /api/v0/devices/customfields/query?name=custom_field_name&fields=field1,field2&value=value&perPage=15
+    // name = name of custom field
+    // fields = comma separated list of fields to include in the results from the device table
+    // value = filter on the value of the custom field
+    // perPage = number of results per page
+    public function api_query(Request $request)
+    {
+        try {
+            $customfield = CustomField::where('name', $request->input('name'))->firstOrFail();
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Custom field not found'], 404);
+        }
+
+        $query = CustomFieldDevice::select('id', 'device_id', 'custom_field_id')
+            ->where('custom_field_id', $customfield->id);
+
+        $table = (new \App\Models\Device())->getTable();
+        $deviceFields = ['device_id', 'hostname', 'sysName', 'ip', 'display', 'overwrite_ip', 'disabled', 'ignore'];
+
+        if ($request->input('fields')) {
+            $fields = explode(',', $request->input('fields'));
+
+            $invalidFields = [];
+            foreach ($fields as $field) {
+                if (!Schema::hasColumn($table, $field)) {
+                    $invalidFields[] = $field;
+                }
+            }
+            if (!empty($invalidFields)) {
+                return response()->json(['error' => 'Invalid fields: ' . implode(', ', $invalidFields)], 400);
+            }
+
+            $deviceFields = array_merge($deviceFields, $fields);
+        }
+
+        $valueFilter = $request->input('value');
+        if ($valueFilter) {
+            $query->whereHas('customFieldValue', function ($query) use ($valueFilter) {
+                $query->where('value', $valueFilter);
+            });
+        }
+
+        $query->with([
+            'device' => function ($query) use ($deviceFields) {
+                $query->select($deviceFields);
+            },
+            'customFieldValue' => function ($query) {
+                $query->select('id', 'value', 'custom_field_device_id');
+            }
+        ]);
+
+        $paginator = $query->paginate($request->input('perPage', 15));
+        $results = $paginator->getCollection();
+
+        $results = $results->map(function ($item) {
+            $itemArray = $item->toArray();
+
+            $itemArray['custom_field_value'] = $item->customFieldValue ? $item->customFieldValue->value : null;
+            unset($itemArray['customFieldValue']);
+
+
+            if (isset($itemArray['device'])) {
+                $itemArray = array_merge($itemArray['device'], $itemArray);
+                unset($itemArray['device']);
+            }
+
+            return $itemArray;
+        });
+
+        return response()->json([
+            'current' => $paginator->currentPage(),
+            'rowCount' => $paginator->count(),
+            'rows' => $results,
+            'total' => $paginator->total(),
+        ]);
+    }
+
 
     // show form to create new custom field
     // GET /plugins/nmscustomfields/create
