@@ -41,26 +41,26 @@ class CustomFieldValueController extends TableController
      */
     protected function baseQuery($request)
     {
+        $custom_field_id = $request->input('custom_field_id');
+        $device_id = $request->input('device_id');
+
         $query = CustomFieldDevice::with('device', 'customFieldValue')
-            ->when($request->input('custom_field_id'), function ($query, $custom_field_id) {
+            ->when($custom_field_id, function ($query) use ($custom_field_id) {
                 return $query->where('custom_field_id', $custom_field_id);
             })
-            ->when($request->input('device_id'), function ($query, $device_id) {
+            ->when($device_id, function ($query) use ($device_id) {
                 return $query->where('device_id', $device_id);
             });
 
-        // if we have searchPhrase then we need to filter the results on device hostname, custom field value
         if ($request->input('searchPhrase')) {
             $searchPhrase = '%' . $request->input('searchPhrase') . '%';
+            $custom_field_id = $request->input('custom_field_id');
 
             $query->whereHas('device', function ($query) use ($searchPhrase) {
                 $query->where('hostname', 'like', $searchPhrase)->orWhere('sysName', 'like', $searchPhrase);
-            })->orWhereHas('customFieldValue', function ($query) use ($searchPhrase) {
-                $query->where(
-                    'value',
-                    'like',
-                    $searchPhrase
-                );
+            })->orWhereHas('customFieldValue', function ($query) use ($searchPhrase, $custom_field_id) {
+                $query->where('value', 'like', $searchPhrase)
+                    ->where('custom_field_id', $custom_field_id);
             });
         }
 

@@ -46,8 +46,8 @@
             <div class="modal-body">
                 <form id="bulk-edit-form" action="{{ route('plugin.nmscustomfields.devicefield.bulkedit') }}">
                     <div class="form-group">
-                        <label for="select-devices">Apply to devices</label>
-                        <select id="select-devices" name="device_ids[]" class="form-control" multiple="multiple"></select>
+                        <label for="bulk-edit-select-devices">Apply to devices</label>
+                        <select id="bulk-edit-select-devices" name="device_ids[]" class="form-control" multiple="multiple"></select>
                         <span class="help-block">Select devices to apply the custom field value to.<br>
                             <strong>Note:</strong> If you remove a device from the list, the custom field value will also be removed from that device.</span>
                         </span>
@@ -55,7 +55,7 @@
                     <div id="alert-container" class="alert alert-warning hidden" role="alert"></div>
                     <div class="form-group">
                         <label for="custom-field-value">Custom Field Value</label>
-                        <input type="text" class="form-control" id="custom-field-value" name="custom_field_value" placeholder="Enter value">
+                        <input type="text" class="form-control" id="blkeddit-custom-field-value" name="custom_field_value" placeholder="Enter value">
                     </div>
                     <input type="hidden" id="blkedit_custom_field_id" name=" custom_field_id" value="{{ $customfield->id }}">
                 </form>
@@ -67,6 +67,40 @@
         </div>
     </div>
 </div>
+
+<!-- Add Device Modal -->
+<div class="modal fade" id="addDeviceModal" tabindex="-1" role="dialog" aria-labelledby="addDeviceModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addDeviceModalLabel">Add custom field to device</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="add-device-form" action="{{ route('plugin.nmscustomfields.devicefield.bulkedit') }}">
+                    <div class="form-group">
+                        <label for="add-device-select-devices">Apply to devices</label>
+                        <select id="add-device-select-devices" name="device_ids[]" class="form-control" multiple="multiple"></select>
+                        <span class="help-block">Select devices to apply the custom field value to.</span>
+                    </div>
+                    <div id="alert-container" class="alert alert-warning hidden" role="alert"></div>
+                    <div class="form-group">
+                        <label for="custom-field-value">Custom Field Value</label>
+                        <input type="text" class="form-control" id="adddevice-custom-field-value" name="custom_field_value" placeholder="Enter value">
+                    </div>
+                    <input type="hidden" id="adddevice_custom_field_id" name=" custom_field_id" value="{{ $customfield->id }}">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="adddevice-btn">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 
 @endsection
@@ -211,6 +245,11 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
             $('#bulkEditModal').modal('show');
         });
 
+        // handle device add button click
+        $("div#manage-device-customfields").on('click', '#device-add-btn', function() {
+            $('#addDeviceModal').modal('show');
+        });
+
         // Handle bulk delete button click
         $("div#manage-device-customfields").on('click', '#bulk-delete-btn', function() {
             let selectedRowIds = grid.bootgrid("getSelectedRows");
@@ -245,7 +284,7 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
         // bind shown to modal to focus on input field
         $('#bulkEditModal').on('shown.bs.modal', function() {
             // Initialize Select2 for the multi-select field
-            $('#select-devices').select2({
+            $('#bulk-edit-select-devices').select2({
                 placeholder: "Search for devices",
                 ajax: {
                     url: '{{ route("ajax.select.device") }}',
@@ -255,10 +294,10 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
                 }
             });
 
-            let selectDevices = $('#select-devices');
+            let selectDevices = $('#bulk-edit-select-devices');
             selectDevices.empty();
 
-            let inputField = $('#custom-field-value');
+            let inputField = $('#blkedit-custom-field-value');
             inputField.val('');
 
             let selectedRowIds = grid.bootgrid("getSelectedRows");
@@ -286,7 +325,7 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
                 $('#device_ids').val(selectedRows.map(row => row.device_id).join(","));
             }
 
-            $('#custom-field-value').focus();
+            $('#blkedit-custom-field-value').focus();
             // set the blkedit_custom_field_id to the value of custom_field_id
             $('#blkedit_custom_field_id').val($("#custom_field_id").val());
         });
@@ -304,6 +343,50 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
                 data: data,
                 success: function(response) {
                     $('#bulkEditModal').modal('hide');
+                    grid.bootgrid("reload");
+                },
+                error: function(response) {
+                    console.log(response);
+                }
+            });
+        });
+
+        // bind shown to modal to focus on input field
+        $('#addDeviceModal').on('shown.bs.modal', function() {
+            // Initialize Select2 for the multi-select field
+            $('#add-device-select-devices').select2({
+                placeholder: "Search for devices",
+                ajax: {
+                    url: '{{ route("ajax.select.device") }}',
+                    dataType: 'json',
+                    delay: 250,
+                    cache: true
+                }
+            });
+
+            let selectDevices = $('#add-device-select-devices');
+            selectDevices.empty();
+
+            let inputField = $('#adddevice-custom-field-value');
+            inputField.val('');
+
+            $('#custom-field-value').focus();
+            $('#adddevice_custom_field_id').val($("#custom_field_id").val());
+        });
+
+        $("div#addDeviceModal").on('click', '#adddevice-btn', function() {
+            let form = $('#add-device-form');
+            let url = form.attr('action');
+            let data = form.serialize();
+            // log post values
+            console.log(data);
+            /// return
+            $.ajax({
+                type: "POST",
+                url: url,
+                data: data,
+                success: function(response) {
+                    $('#addDeviceModal').modal('hide');
                     grid.bootgrid("reload");
                 },
                 error: function(response) {

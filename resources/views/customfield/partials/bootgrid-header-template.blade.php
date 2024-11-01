@@ -20,6 +20,7 @@
     <div class="col-sm-6">
         <div class="actionBar pull-right">
             <div class="btn-toolbar" role="toolbar">
+                <button id="device-add-btn" class="btn btn-primary"><i class="fa fa-plus"></i> Add device</button>
                 <button id="bulk-edit-btn" class="btn btn-primary" disabled><i class="fa fa-pencil"></i> Bulk Edit</button>
                 <button id="bulk-delete-btn" class="btn btn-danger" disabled><i class="fa fa-trash"></i> Bulk Delete</button>
                 <div class="@{{css.actions}}"></div>
