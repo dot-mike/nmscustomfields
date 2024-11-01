@@ -7,6 +7,11 @@ LIBRENMS_FOLDER_BASE=$(dirname $(realpath $LIBRENMS_FOLDER))
 
 cd $LIBRENMS_FOLDER_BASE || exit 1
 
+if [ -d "$LIBRENMS_FOLDER" ] && [ -f "$LIBRENMS_FOLDER/config.php" ]; then
+    echo "Librenms is already installed in $LIBRENMS_FOLDER"
+    exit 0
+fi
+
 echo "Cloning librenms version $LIBRENMS_VERSION into $LIBRENMS_FOLDER"
 
 git clone https://github.com/librenms/librenms.git --branch $LIBRENMS_VERSION --depth 1 --single-branch librenms
