@@ -174,7 +174,7 @@ POST /api/v0/customfields/query
 - **Description**: Retrieves a list of custom fields with the specified filter in JSON format.
 - **Parameters**:
   - Request body containing the filter data.
-  ```json
+```json
 {
      "filters": [
          {"field": "description", "operator": "eq", "value": "testing2"},
@@ -186,7 +186,7 @@ POST /api/v0/customfields/query
      "perPage": 15,
      "page": 1
  }'
-  ```
+```
 
 Possible parameters for the filter are:
 - `field`: The field name to filter on.
