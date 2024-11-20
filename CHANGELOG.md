@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.9] - 2024-11-20
+
+### Changed
+
+- Api for `/devices/{device}/customfields` now returns the proper value for the custom field id and name with the value.
+  The response now includes the `id` and `name` keys.
+
+- Api for `/customfields/query` has been refactored to use POST-method instead of GET.
+  The method has been updated to accept a JSON body with a much more flexible query structure to allow for more complex queries.
+  The response has been updated to reflect standard response format for paginated results.
+
 ## [1.0.8] - 2024-11-01
 
 ### Fixed
