@@ -28,7 +28,8 @@ class DeviceCustomFieldController extends Controller
             $device->load('customFieldDevices.customFieldValue');
             $customFieldValues = $device->customFieldDevices->map(function ($customFieldDevice) {
                 return [
-                    'id' => $customFieldDevice->id,
+                    'id' => $customFieldDevice->customField->id,
+                    'name' => $customFieldDevice->customField->name,
                     'value' => $customFieldDevice->customFieldValue->value,
                 ];
             });

@@ -2,15 +2,20 @@
 
 namespace DotMike\NmsCustomFields\Http\Controllers;
 
+use Composer\Util\Http\Response;
 use DotMike\NmsCustomFields\Models\CustomField;
 use DotMike\NmsCustomFields\Models\CustomFieldDevice;
+
+use App\Models\Device;
 
 use Illuminate\Routing\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 use Gate;
 use Validator;
+use InvalidArgumentException;
 
 class CustomFieldController extends Controller
 {
@@ -34,34 +39,109 @@ class CustomFieldController extends Controller
     }
 
     // query custom fields as json
-    // GET /api/v0/devices/customfields/query?name=custom_field_name&fields=field1,field2&value=value&perPage=15
-    // name = name of custom field
+    // GET /api/v0/customfields/query?filters[0][name]=custom_field_name_1&filters[0][value]=value1&filters[1][name]=custom_field_name_2&filters[1][value]=value2&fields=device_id,hostname,sysName&perPage=10&page=1
+    // filters = array of custom field names and values to filter on
     // fields = comma separated list of fields to include in the results from the device table
-    // value = filter on the value of the custom field
     // perPage = number of results per page
     public function api_query(Request $request)
     {
-        try {
-            $customfield = CustomField::where('name', $request->input('name'))->firstOrFail();
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['error' => 'Custom field not found'], 404);
+        $validated = $request->validate([
+            'filters' => 'required|array',
+            'filters.*.field' => 'required|string',
+            'filters.*.operator' => 'required|string|in:eq,ne,lt,gt,lte,gte,exists,not_exists',
+            'filters.*.value' => 'required_unless:filters.*.operator,exists,not_exists',
+            'fields' => 'array',
+            'fields.*' => 'string',
+            'perPage' => 'integer|min:1',
+            'page' => 'integer|min:1',
+        ]);
+
+        // Fetch valid custom fields
+        $customFields = CustomField::whereIn('name', collect($validated['filters'])->pluck('field'))->get();
+
+        if ($customFields->isEmpty()) {
+            return response()->json(['error' => 'No valid custom fields found'], 404);
         }
 
-        $query = CustomFieldDevice::select('id', 'device_id', 'custom_field_id')
-            ->where('custom_field_id', $customfield->id);
+        $query = Device::query();
 
-        $table = (new \App\Models\Device())->getTable();
-        $deviceFields = ['device_id', 'hostname', 'sysName', 'ip', 'display', 'overwrite_ip', 'disabled', 'ignore'];
+        // Apply filters
+        $query->where(function ($q) use ($validated, $customFields) {
+            foreach ($validated['filters'] as $filter) {
+                $q->where(function ($subQuery) use ($filter, $customFields) {
+                    $fieldId = $customFields->where('name', $filter['field'])->pluck('id')->first();
+                    $customField = $customFields->where('id', $fieldId)->first();
+                    $isNumericField = $customField && $customField->type === 'integer';
 
-        if ($request->input('fields')) {
-            $fields = explode(',', $request->input('fields'));
+                    switch ($filter['operator']) {
+                        case 'exists':
+                            // Include devices where field exists
+                            $subQuery->whereHas('customFieldDevices', function ($existsQuery) use ($filter) {
+                                $existsQuery->whereHas('customField', function ($customFieldQuery) use ($filter) {
+                                    $customFieldQuery->where('name', $filter['field']);
+                                });
+                            });
+                            break;
 
-            $invalidFields = [];
-            foreach ($fields as $field) {
-                if (!Schema::hasColumn($table, $field)) {
-                    $invalidFields[] = $field;
-                }
+                        case 'not_exists':
+                            // Exclude devices where field does not exist
+                            $subQuery->whereDoesntHave('customFieldDevices', function ($notExistsQuery) use ($filter) {
+                                $notExistsQuery->whereHas('customField', function ($customFieldQuery) use ($filter) {
+                                    $customFieldQuery->where('name', $filter['field']);
+                                });
+                            });
+                            break;
+
+                            // Handle comparison operators for text fields with numeric values
+                        case 'lte':
+                        case 'gte':
+                        case 'lt':
+                        case 'gt':
+                            if ($isNumericField) {
+                                $operator = $this->mapOperator($filter['operator']); // e.g. "lte", "gte"
+                                $subQuery->whereHas('customFieldDevices', function ($defaultQuery) use ($filter, $operator) {
+                                    $defaultQuery->whereHas('customField', function ($customFieldQuery) use ($filter) {
+                                        $customFieldQuery->where('name', $filter['field']);
+                                    })->whereHas('customFieldValue', function ($valueQuery) use ($filter, $operator) {
+                                        // Cast value as integer for comparison
+                                        $valueQuery->whereRaw("CAST(value AS UNSIGNED) $operator ?", [$filter['value']]);
+                                    });
+                                });
+                            }
+                            break;
+
+                        default:
+                            // Filter for devices with custom field value
+                            $operator = $this->mapOperator($filter['operator']);
+                            $subQuery->whereHas('customFieldDevices', function ($defaultQuery) use ($filter, $operator) {
+                                $defaultQuery->whereHas('customField', function ($customFieldQuery) use ($filter) {
+                                    $customFieldQuery->where('name', $filter['field']);
+                                })->whereHas('customFieldValue', function ($valueQuery) use ($filter, $operator) {
+                                    $valueQuery->where('value', $operator, $filter['value']);
+                                });
+                            });
+                            break;
+                    }
+                });
             }
+        });
+
+        $deviceFields = [
+            'device_id',
+            'hostname',
+            'sysName',
+            'ip',
+            'display',
+            'overwrite_ip',
+            'disabled',
+            'ignore',
+        ];
+
+        // Validate requested fields
+        if (!empty($validated['fields'])) {
+            $fields = $validated['fields'];
+            $invalidFields = array_diff($fields, Schema::getColumnListing((new \App\Models\Device())->getTable()));
+
             if (!empty($invalidFields)) {
                 return response()->json(['error' => 'Invalid fields: ' . implode(', ', $invalidFields)], 400);
             }
@@ -69,44 +149,36 @@ class CustomFieldController extends Controller
             $deviceFields = array_merge($deviceFields, $fields);
         }
 
-        $valueFilter = $request->input('value');
-        if ($valueFilter) {
-            $query->whereHas('customFieldValue', function ($query) use ($valueFilter) {
-                $query->where('value', $valueFilter);
-            });
-        }
+        $query->select($deviceFields);
 
-        $query->with([
-            'device' => function ($query) use ($deviceFields) {
-                $query->select($deviceFields);
-            },
-            'customFieldValue' => function ($query) {
-                $query->select('id', 'value', 'custom_field_device_id');
-            }
-        ]);
-
-        $paginator = $query->paginate($request->input('perPage', 15));
-        $results = $paginator->getCollection();
-
-        $results = $results->map(function ($item) {
+        // Pagination
+        $paginator = $query->paginate($validated['perPage'] ?? 15, ['*'], 'page', $validated['page'] ?? 1);
+        $results = $paginator->getCollection()->map(function ($item) {
             $itemArray = $item->toArray();
 
-            $itemArray['custom_field_value'] = $item->customFieldValue ? $item->customFieldValue->value : null;
-            unset($itemArray['customFieldValue']);
+            // Fetch custom fields for each device
+            $customFields = CustomFieldDevice::where('device_id', $item->device_id)
+                ->with('customFieldValue', 'customField')
+                ->get()
+                ->map(function ($fieldDevice) {
+                    return [
+                        'field_name' => $fieldDevice->customField->name,
+                        'value' => optional($fieldDevice->customFieldValue)->value,
+                    ];
+                });
 
-
-            if (isset($itemArray['device'])) {
-                $itemArray = array_merge($itemArray['device'], $itemArray);
-                unset($itemArray['device']);
-            }
+            $itemArray['custom_fields'] = $customFields;
 
             return $itemArray;
         });
 
         return response()->json([
-            'current' => $paginator->currentPage(),
-            'rowCount' => $paginator->count(),
-            'rows' => $results,
+            'current_page' => $paginator->currentPage(),
+            'data' => $results,
+            'from' => $paginator->firstItem(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'to' => $paginator->lastItem(),
             'total' => $paginator->total(),
         ]);
     }
@@ -224,5 +296,19 @@ class CustomFieldController extends Controller
 
         $customfield->delete();
         return redirect()->route('plugin.nmscustomfields.customfield.index')->with('success', 'Custom field deleted.');
+    }
+
+    private function mapOperator(string $operator): ?string
+    {
+        $operatorMap = [
+            'eq' => '=',
+            'ne' => '!=',
+            'lt' => '<',
+            'gt' => '>',
+            'lte' => '<=',
+            'gte' => '>='
+        ];
+
+        return $operatorMap[$operator] ?? throw new InvalidArgumentException("Invalid operator: $operator");
     }
 }
