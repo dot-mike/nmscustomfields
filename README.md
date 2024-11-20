@@ -176,16 +176,16 @@ POST /api/v0/customfields/query
   - Request body containing the filter data.
 ```json
 {
-     "filters": [
-         {"field": "description", "operator": "eq", "value": "testing2"},
-         {"field": "isok", "operator": "eq", "value": "exists"},
-         {"field": "nonexistant", "operator": "eq", "value": "not_exists"},
+    "filters": [
+        {"field": "description", "operator": "eq", "value": "testing2"},
+        {"field": "isok", "operator": "eq", "value": "exists"},
+        {"field": "nonexistant", "operator": "eq", "value": "not_exists"},
 
-     ],
-     "fields": ["device_id", "hostname", "sysName"],
-     "perPage": 15,
-     "page": 1
- }'
+    ],
+    "fields": ["device_id", "hostname", "sysName"],
+    "perPage": 15,
+    "page": 1
+}
 ```
 
 Possible parameters for the filter are:
