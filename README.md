@@ -168,37 +168,64 @@ GET /api/v0/customfields
 #### Query Custom Fields
 
 ```
-GET /api/v0//customfields/query?name={custom_field_name}&value={custom_field_value}&fields={device_fields}&perPage=15&page=1
+POST /api/v0/customfields/query
 ```
 
-- **Description**: Retrieves a list of custom fields with optional filter.
+- **Description**: Retrieves a list of custom fields with the specified filter in JSON format.
 - **Parameters**:
-  - `{custom_field_name}`: The name of the custom field to filter by.
-  - `{custom_field_value}`: Optionally filter by the value of the custom field.
-  - `{device_fields}`: Optionally include device fields in the response. Defaults to 'device_id', 'hostname', 'sysName', 'ip', 'display', 'overwrite_ip', 'disabled', 'ignore'
-  - `perPage`: The number of items to display per page.
-  - `page`: The page number to display.
+  - Request body containing the filter data.
+  ```json
+{
+     "filters": [
+         {"field": "description", "operator": "eq", "value": "testing2"},
+         {"field": "isok", "operator": "eq", "value": "exists"},
+         {"field": "nonexistant", "operator": "eq", "value": "not_exists"},
+
+     ],
+     "fields": ["device_id", "hostname", "sysName"],
+     "perPage": 15,
+     "page": 1
+ }'
+  ```
+
+Possible parameters for the filter are:
+- `field`: The field name to filter on.
+- `operator`: The operator to use for the filter. Possible values are `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`, `not_like`, `exists`, `not_exists`.
+- `value`: The value to filter on if the operator is not `exists` or `not_exists`.
 
 Example output:
 ```json
 {
-  "current": 1,
-  "rowCount": 1,
-  "rows": [
-    {
-      "device_id": 2,
-      "hostname": "snmpsim2",
-      "sysName": "zeus2",
-      "ip": null,
-      "display": null,
-      "overwrite_ip": null,
-      "disabled": 0,
-      "ignore": 0,
-      "id": 8,
-      "custom_field_id": 1,
-      "custom_field_value": "testing2"
-    }
-  ],
-  "total": 1
+    "current_page": 1,
+    "data": [
+        {
+            "device_id": 1,
+            "device": {
+                "device_id": 1,
+                "hostname": "snmpsim",
+                "sysName": "zeus",
+                "ip": null,
+                "display": null,
+                "overwrite_ip": null,
+                "disabled": 0,
+                "ignore": 0
+            },
+            "custom_fields": [
+                {
+                    "field_name": "description",
+                    "value": "testing2"
+                },
+                {
+                    "field_name": "isok",
+                    "value": "yes"
+                }
+            ]
+        }
+    ],
+    "from": 1,
+    "last_page": 1,
+    "per_page": 15,
+    "to": 1,
+    "total": 1
 }
 ```
