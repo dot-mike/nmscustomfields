@@ -334,9 +334,6 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
             let form = $('#bulk-edit-form');
             let url = form.attr('action');
             let data = form.serialize();
-            // log post values
-            console.log(data);
-            /// return
             $.ajax({
                 type: "POST",
                 url: url,
@@ -378,9 +375,6 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
             let form = $('#add-device-form');
             let url = form.attr('action');
             let data = form.serialize();
-            // log post values
-            console.log(data);
-            /// return
             $.ajax({
                 type: "POST",
                 url: url,
