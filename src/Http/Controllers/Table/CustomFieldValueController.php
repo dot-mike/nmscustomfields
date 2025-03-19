@@ -4,35 +4,13 @@ namespace DotMike\NmsCustomFields\Http\Controllers\Table;
 
 use DotMike\NmsCustomFields\Models\CustomField;
 use DotMike\NmsCustomFields\Models\CustomFieldDevice;
-
 use App\Models\Device;
 use App\Http\Controllers\Table\TableController;
-
-use App\Models\Port;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\DB;
-use LibreNMS\Util\Number;
-use LibreNMS\Util\Rewrite;
-use LibreNMS\Util\Url;
+use Illuminate\Http\Request;
 
 class CustomFieldValueController extends TableController
 {
-    protected function rules()
-    {
-        return [];
-    }
-
-    protected function filterFields($request)
-    {
-        return [];
-    }
-
-    protected function sortFields($request)
-    {
-        return [];
-    }
-
     /**
      * Defines the base query for this resource
      *
@@ -41,54 +19,122 @@ class CustomFieldValueController extends TableController
      */
     protected function baseQuery($request)
     {
-        $custom_field_id = $request->input('custom_field_id');
-        $device_id = $request->input('device_id');
+        return CustomFieldDevice::with(['device', 'customFieldValue']);
+    }
 
-        $query = CustomFieldDevice::with('device', 'customFieldValue')
-            ->when($custom_field_id, function ($query) use ($custom_field_id) {
-                return $query->where('custom_field_id', $custom_field_id);
-            })
-            ->when($device_id, function ($query) use ($device_id) {
-                return $query->where('device_id', $device_id);
+    /**
+     * Apply the search phrase to the query
+     *
+     * @param  string  $search
+     * @param  Builder  $query
+     * @param  array  $fields
+     * @return Builder
+     */
+    protected function search($search, $query, $fields)
+    {
+        if ($search) {
+            $query->where(function ($subquery) use ($search) {
+                $subquery->whereHas('device', function ($deviceQuery) use ($search) {
+                    $deviceQuery->where('hostname', 'like', '%' . $search . '%')
+                        ->orWhere('sysName', 'like', '%' . $search . '%');
+                })
+                    ->orWhereHas('customFieldValue', function ($valueQuery) use ($search) {
+                        $valueQuery->where('value', 'like', '%' . $search . '%');
+                    });
             });
 
-        if ($request->input('searchPhrase')) {
-            $searchPhrase = '%' . $request->input('searchPhrase') . '%';
-            $custom_field_id = $request->input('custom_field_id');
-
-            $query->whereHas('device', function ($query) use ($searchPhrase) {
-                $query->where('hostname', 'like', $searchPhrase)->orWhere('sysName', 'like', $searchPhrase);
-            })->orWhereHas('customFieldValue', function ($query) use ($searchPhrase, $custom_field_id) {
-                $query->where('value', 'like', $searchPhrase)
-                    ->where('custom_field_id', $custom_field_id);
-            });
+            $query->distinct();
         }
 
         return $query;
     }
 
     /**
-     * @param  \Illuminate\Contracts\Pagination\LengthAwarePaginator&\Countable  $paginator
-     * @return \Illuminate\Http\JsonResponse
+     * Define searchable columns for the controller
+     *
+     * @param Request $request
+     * @return array
      */
-    protected function formatResponse($paginator)
+    protected function searchFields(Request $request)
     {
-        $customfields = collect($paginator->items())->map(function ($item) {
-            return [
-                'device_id' => $item->device_id,
-                'hostname' => $item->device->hostname,
-                'sysName' => $item->device->sysName,
-                'custom_field_id' => $item->custom_field_id,
-                'custom_field_value' => $item->customFieldValue->value,
-                'custom_field_value_id' => $item->customFieldValue->id,
-            ];
-        });
+        // This will be ignored since we're overriding the search method
+        // But we keep it for compatibility with the parent class
+        return [];
+    }
 
-        return response()->json([
-            'current' => $paginator->currentPage(),
-            'rowCount' => $paginator->count(),
-            'rows' => $customfields,
-            'total' => $paginator->total(),
-        ]);
+    /**
+     * Define filterable columns for the controller
+     *
+     * @return array
+     */
+    protected function filterFields(Request $request)
+    {
+        return [
+            'custom_field_id',
+            'device_id',
+        ];
+    }
+
+    /**
+     * Format an individual model for the response
+     *
+     * @param CustomFieldDevice $model
+     * @return array
+     */
+    public function formatItem($model)
+    {
+        return [
+            'device_id' => $model->device_id,
+            'hostname' => $model->device->hostname,
+            'sysName' => $model->device->sysName,
+            'custom_field_id' => $model->custom_field_id,
+            'custom_field_value' => $model->customFieldValue->value,
+            'custom_field_value_id' => $model->customFieldValue->id,
+        ];
+    }
+
+    /**
+     * Sort the query by request parameters
+     *
+     * @param Request $request
+     * @param Builder $query
+     * @return Builder
+     */
+    protected function sort($request, $query)
+    {
+        if (empty($request->get('sort'))) {
+            return $query;
+        }
+
+        $joinTables = [];
+
+        foreach ($request->get('sort') as $column => $direction) {
+            switch ($column) {
+                case 'hostname':
+                case 'sysName':
+                    if (!in_array('devices', $joinTables)) {
+                        $query->leftJoin('devices', 'custom_field_device.device_id', '=', 'devices.device_id');
+                        $joinTables[] = 'devices';
+                    }
+                    $query->orderBy("devices.$column", $direction);
+                    break;
+
+                case 'custom_field_value':
+                    if (!in_array('custom_field_values', $joinTables)) {
+                        $query->leftJoin('custom_field_values', 'custom_field_device.id', '=', 'custom_field_values.custom_field_device_id');
+                        $joinTables[] = 'custom_field_values';
+                    }
+                    $query->orderBy('custom_field_values.value', $direction);
+                    break;
+
+                default:
+                    $query->orderBy("custom_field_device.$column", $direction);
+                    break;
+            }
+        }
+
+        $query->select('custom_field_device.*')->distinct();
+
+        return $query;
     }
 }
