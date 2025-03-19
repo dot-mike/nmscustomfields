@@ -28,6 +28,7 @@ Route::group(['middleware' => ['resolve.device', 'web', 'auth'], 'guard' => 'aut
                     Route::prefix('table')->namespace('Table')->group(function () {
                         Route::post('customfields', 'CustomFieldController')->name('table.customfields');
                         Route::post('customfieldvalues', 'CustomFieldValueController')->name('table.customfieldvalues');
+                        Route::post('customfieldvalues/export', 'CustomFieldValueController@export')->name('table.customfieldvalues.export');
                     });
                 });
             });

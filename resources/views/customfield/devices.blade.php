@@ -397,9 +397,35 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
 
         $("#device_filter").submit(function(e) {
             e.preventDefault();
-            grid.bootgrid("search", $("#hostname").val());
+            grid.bootgrid("search", $("#global_search").val());
         });
 
+        $("div#manage-device-customfields").on('click', '#export-csv-btn', function() {
+            let exportUrl = "{{ route('plugin.nmscustomfields.table.customfieldvalues.export') }}";
+            let params = {
+                custom_field_id: $("#custom_field_id").val(),
+                device_id: $("#device_id").val(),
+                search: $("#global_search").val(),
+                _token: "{{ csrf_token() }}"
+            };
+
+            let $form = $('<form>')
+                .attr('method', 'POST')
+                .attr('action', exportUrl);
+
+            $.each(params, function(key, value) {
+                if (value) {
+                    $form.append($('<input>')
+                        .attr('type', 'hidden')
+                        .attr('name', key)
+                        .attr('value', value));
+                }
+            });
+
+            $('body').append($form);
+            $form.submit();
+            $form.remove();
+        });
 
     });
 </script>
