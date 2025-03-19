@@ -38,7 +38,7 @@
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="bulkEditModalLabel">Bulk Edit Devices</h5>
+                <h5 class="modal-title" id="bulkEditModalLabel">Bulk Edit Devices - <span id="bulk-edit-field-name"></span></h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -54,7 +54,7 @@
                     </div>
                     <div id="alert-container" class="alert alert-warning hidden" role="alert"></div>
                     <div class="form-group">
-                        <label for="custom-field-value">Custom Field Value</label>
+                        <label for="custom-field-value">Value for <strong id="bulk-edit-field-name-label"></strong></label>
                         <input type="text" class="form-control" id="blkeddit-custom-field-value" name="custom_field_value" placeholder="Enter value">
                     </div>
                     <input type="hidden" id="blkedit_custom_field_id" name=" custom_field_id" value="{{ $customfield->id }}">
@@ -297,8 +297,15 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
             let selectDevices = $('#bulk-edit-select-devices');
             selectDevices.empty();
 
-            let inputField = $('#blkedit-custom-field-value');
+            let inputField = $('#blkeddit-custom-field-value');
             inputField.val('');
+
+            // Always hide the alert container when opening the modal
+            $('#alert-container').addClass('hidden').empty();
+
+            let fieldName = $('#custom_field_id option:selected').text();
+            $('#bulk-edit-field-name').text(fieldName);
+            $('#bulk-edit-field-name-label').text(fieldName);
 
             let selectedRowIds = grid.bootgrid("getSelectedRows");
             let multipleValuesWarning = 'Warning: Multiple different values selected. This will override all selected devices with this value.';
@@ -312,6 +319,7 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
                     inputField.attr('placeholder', '');
                 } else {
                     inputField.val('');
+                    inputField.attr('placeholder', 'Enter new value that will replace all existing values');
                     $('#alert-container').text(multipleValuesWarning).removeClass('hidden');
                 }
 
@@ -325,7 +333,7 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
                 $('#device_ids').val(selectedRows.map(row => row.device_id).join(","));
             }
 
-            $('#blkedit-custom-field-value').focus();
+            $('#blkeddit-custom-field-value').focus();
             // set the blkedit_custom_field_id to the value of custom_field_id
             $('#blkedit_custom_field_id').val($("#custom_field_id").val());
         });
