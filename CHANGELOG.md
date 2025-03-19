@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.10] - 2025-03-19
+
+### Fixed
+
+- Sorting the custom field values list on the plugin page now works correctly.
+  The sorting was previously broken and would not sort the values
+
+- Show which custom field is being edited in the modal.
+
+### Added
+
+- Added export functionality to the custom field values list on the plugin page.
+  The export is available in CSV format and can be downloaded by clicking the "Export" button.
+
+
 ## [1.0.9] - 2024-11-20
 
 ### Changed

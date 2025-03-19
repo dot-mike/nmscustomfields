@@ -1,7 +1,7 @@
 {
   "name": "dot-mike/nmscustomfields",
   "description": "LibreNMS plugin to add custom fields to devices",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "type": "library",
   "license": "MIT",
   "authors": [
