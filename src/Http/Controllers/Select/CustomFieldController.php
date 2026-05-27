@@ -7,24 +7,28 @@ use DotMike\NmsCustomFields\Models\CustomFieldDevice;
 
 use App\Http\Controllers\Select\SelectController;
 
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Http\Request;
+
 class CustomFieldController extends SelectController
 {
-    protected function rules()
+    protected function rules(): array
     {
         return [];
     }
 
-    protected function filterFields($request)
+    protected function filterFields(Request $request): array
     {
         return [];
     }
 
-    protected function sortFields($request)
+    protected function sortFields(Request $request): array
     {
         return [];
     }
 
-    protected function baseQuery($request)
+    protected function baseQuery(Request $request): EloquentBuilder|Builder
     {
         $query = CustomField::select('id', 'name');
 

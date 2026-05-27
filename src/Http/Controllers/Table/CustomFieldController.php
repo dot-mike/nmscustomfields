@@ -16,33 +16,29 @@ use LibreNMS\Util\Rewrite;
 use LibreNMS\Util\Url;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
 class CustomFieldController extends TableController
 {
-    protected function rules()
+    protected function rules(): array
     {
         return [];
     }
 
-    protected function filterFields($request)
+    protected function filterFields(Request $request): array
     {
         return [];
     }
 
-    protected function sortFields($request)
+    protected function sortFields(Request $request): array
     {
         return [];
     }
 
-    /**
-     * Defines the base query for this resource
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder
-     */
-    protected function baseQuery($request)
+    protected function baseQuery(Request $request): Builder|\Illuminate\Database\Query\Builder
     {
         // find all custom fields with a value for this device
         // custom_field_device holds the relationship between custom_field and device
@@ -58,11 +54,7 @@ class CustomFieldController extends TableController
         return $query;
     }
 
-    /**
-     * @param  \Illuminate\Contracts\Pagination\LengthAwarePaginator&\Countable  $paginator
-     * @return \Illuminate\Http\JsonResponse
-     */
-    protected function formatResponse($paginator)
+    protected function formatResponse($paginator): JsonResponse
     {
 
         // paginator contains a multi-dimensional array that contains device info, nested custom field info, and nested custom field value info

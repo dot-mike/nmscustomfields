@@ -7,31 +7,20 @@ use DotMike\NmsCustomFields\Models\CustomFieldDevice;
 use App\Models\Device;
 use App\Http\Controllers\Table\TableController;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CustomFieldValueController extends TableController
 {
-    /**
-     * Defines the base query for this resource
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder
-     */
-    protected function baseQuery($request)
+    protected function baseQuery(Request $request): Builder|\Illuminate\Database\Query\Builder
     {
         return CustomFieldDevice::with(['device', 'customFieldValue']);
     }
 
-    /**
-     * Apply the search phrase to the query
-     *
-     * @param  string  $search
-     * @param  Builder  $query
-     * @param  array  $fields
-     * @return Builder
-     */
-    protected function search($search, $query, $fields)
+    protected function search(?string $search, Builder $query, array $fields): Builder
     {
         if ($search) {
             $query->where(function ($subquery) use ($search) {
@@ -50,25 +39,14 @@ class CustomFieldValueController extends TableController
         return $query;
     }
 
-    /**
-     * Define searchable columns for the controller
-     *
-     * @param Request $request
-     * @return array
-     */
-    protected function searchFields(Request $request)
+    protected function searchFields(Request $request): array
     {
         // This will be ignored since we're overriding the search method
         // But we keep it for compatibility with the parent class
         return [];
     }
 
-    /**
-     * Define filterable columns for the controller
-     *
-     * @return array
-     */
-    protected function filterFields(Request $request)
+    protected function filterFields(Request $request): array
     {
         return [
             'custom_field_id',
@@ -76,13 +54,7 @@ class CustomFieldValueController extends TableController
         ];
     }
 
-    /**
-     * Format an individual model for the response
-     *
-     * @param CustomFieldDevice $model
-     * @return array
-     */
-    public function formatItem($model)
+    public function formatItem(Model $model): Model|array|Collection
     {
         return [
             'device_id' => $model->device_id,
@@ -94,14 +66,7 @@ class CustomFieldValueController extends TableController
         ];
     }
 
-    /**
-     * Sort the query by request parameters
-     *
-     * @param Request $request
-     * @param Builder $query
-     * @return Builder
-     */
-    protected function sort($request, $query)
+    protected function sort(Request $request, Builder $query): Builder
     {
         if (empty($request->get('sort'))) {
             return $query;
@@ -139,13 +104,7 @@ class CustomFieldValueController extends TableController
         return $query;
     }
 
-    /**
-     * Export data as CSV
-     *
-     * @param Request $request
-     * @return \Symfony\Component\HttpFoundation\StreamedResponse
-     */
-    public function export(Request $request)
+    public function export(Request $request): StreamedResponse
     {
         $query = $this->prepareExportQuery($request);
         $data = $query->get();
@@ -166,13 +125,7 @@ class CustomFieldValueController extends TableController
         return $this->generateCsvResponse($data, $headers, $filename);
     }
 
-    /**
-     * Prepare the query for export with all filters applied
-     *
-     * @param Request $request
-     * @return Builder
-     */
-    protected function prepareExportQuery(Request $request)
+    protected function prepareExportQuery(Request $request): Builder
     {
         $query = $this->baseQuery($request);
 
@@ -193,12 +146,7 @@ class CustomFieldValueController extends TableController
         return $query;
     }
 
-    /**
-     * Get headers for CSV export
-     *
-     * @return array
-     */
-    protected function getExportHeaders()
+    protected function getExportHeaders(): array
     {
         return [
             'Device ID',
@@ -209,13 +157,7 @@ class CustomFieldValueController extends TableController
         ];
     }
 
-    /**
-     * Format a row for CSV export
-     *
-     * @param mixed $item
-     * @return array
-     */
-    protected function formatExportRow($item)
+    protected function formatExportRow(Model $item): array
     {
         return [
             $item->device_id,
@@ -226,15 +168,7 @@ class CustomFieldValueController extends TableController
         ];
     }
 
-    /**
-     * Generate CSV response from data
-     *
-     * @param \Illuminate\Support\Collection $data
-     * @param array $headers
-     * @param string $filename
-     * @return \Symfony\Component\HttpFoundation\StreamedResponse
-     */
-    protected function generateCsvResponse($data, $headers, $filename)
+    protected function generateCsvResponse(Collection $data, array $headers, string $filename): StreamedResponse
     {
         return response()->stream(
             function () use ($data, $headers) {
