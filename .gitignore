@@ -4,3 +4,8 @@
 
 # Laravel specific
 /.env
+
+# PHPUnit
+/.phpunit.cache/
+/phpunit.xml
+/.phpunit.result.cache

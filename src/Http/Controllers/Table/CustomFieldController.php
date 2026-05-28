@@ -4,8 +4,6 @@ namespace DotMike\NmsCustomFields\Http\Controllers\Table;
 
 use DotMike\NmsCustomFields\Models\CustomField;
 use DotMike\NmsCustomFields\Models\CustomFieldDevice;
-use DotMike\NmsCustomFields\Models\CustomFieldValue;
-
 
 use App\Http\Controllers\Table\TableController;
 use App\Models\Device;
@@ -40,41 +38,27 @@ class CustomFieldController extends TableController
 
     protected function baseQuery(Request $request): Builder|\Illuminate\Database\Query\Builder
     {
-        // find all custom fields with a value for this device
-        // custom_field_device holds the relationship between custom_field and device
-        // custom_field_values holds the value for the custom field and relationship to custom_field_device with custom_field_device_id
-
         $device_id = $request->input('device_id');
-        $query = CustomFieldValue::whereHas('customFieldDevice', function ($query) use ($device_id) {
-            $query->where('device_id', $device_id);
-        })
-            ->with(['customFieldDevice.customField', 'customFieldDevice.device' => function ($query) {
-                $query->select('device_id', 'hostname', 'sysName');
-            }]);
-        return $query;
+        return CustomFieldDevice::where('device_id', $device_id)
+            ->with('customField');
     }
 
     protected function formatResponse($paginator): JsonResponse
     {
-
-        // paginator contains a multi-dimensional array that contains device info, nested custom field info, and nested custom field value info
-        // we need to flatten this to a single array for the table
-        $rows = collect($paginator->items())->map(function ($item) {
+        $rows = collect($paginator->items())->map(function ($cfd) {
             return [
-                'custom_field_value_id' => $item->id,
-                'custom_field_id' => $item->customFieldDevice->customField->id,
-                'custom_field_name' => $item->customFieldDevice->customField->name,
-                'custom_field_value' => $item->value,
-                'device_id' => $item->customFieldDevice->device->device_id,
-                'device_hostname' => $item->customFieldDevice->device->hostname,
+                'custom_field_device_id' => $cfd->id,
+                'custom_field_id'        => $cfd->customField->id,
+                'custom_field_name'      => $cfd->customField->name,
+                'custom_field_value'     => $cfd->value, // string|null
             ];
         });
 
         return response()->json([
-            'current' => $paginator->currentPage(),
+            'current'  => $paginator->currentPage(),
             'rowCount' => $paginator->count(),
-            'rows' => $rows,
-            'total' => $paginator->total(),
+            'rows'     => $rows,
+            'total'    => $paginator->total(),
         ]);
     }
 }

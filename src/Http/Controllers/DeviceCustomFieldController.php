@@ -3,7 +3,6 @@
 namespace DotMike\NmsCustomFields\Http\Controllers;
 
 use DotMike\NmsCustomFields\Models\CustomField;
-use DotMike\NmsCustomFields\Models\CustomFieldValue;
 use DotMike\NmsCustomFields\Models\CustomFieldDevice;
 
 use App\Models\Device;
@@ -25,12 +24,12 @@ class DeviceCustomFieldController extends Controller
         Gate::authorize('admin');
 
         if ($request->expectsJson()) {
-            $device->load('customFieldDevices.customFieldValue');
-            $customFieldValues = $device->customFieldDevices->map(function ($customFieldDevice) {
+            $device->load('customFieldDevices.customField');
+            $customFieldValues = $device->customFieldDevices->map(function ($cfd) {
                 return [
-                    'id' => $customFieldDevice->customField->id,
-                    'name' => $customFieldDevice->customField->name,
-                    'value' => $customFieldDevice->customFieldValue->value,
+                    'id'    => $cfd->customField->id,
+                    'name'  => $cfd->customField->name,
+                    'value' => $cfd->value,
                 ];
             });
             return response()->json($customFieldValues);
@@ -47,17 +46,15 @@ class DeviceCustomFieldController extends Controller
     public function show(Request $request, Device $device, CustomFieldDevice $customdevicefield)
     {
         if ($request->expectsJson()) {
-            // find the value of the custom field
-            $customdevicefield->load('customFieldValue');
             return response()->json([
-                'id' => $customdevicefield->id,
-                'custom_field_id' => $customdevicefield->custom_field_id,
+                'id'                => $customdevicefield->id,
+                'custom_field_id'   => $customdevicefield->custom_field_id,
                 'custom_field_name' => $customdevicefield->customField->name,
-                'value' => $customdevicefield->customFieldValue->value,
+                'value'             => $customdevicefield->value,
             ]);
-        } else {
-            return redirect()->route('plugin.nmscustomfields.device.index', $device);
         }
+
+        return redirect()->route('plugin.nmscustomfields.device.index', $device);
     }
 
     // show form to add custom field to device
@@ -79,32 +76,36 @@ class DeviceCustomFieldController extends Controller
     {
         Gate::authorize('admin');
 
-        $validator = Validator::make($request->all(), [
+        $cfId        = $request->input('custom_field_id');
+        $customField = CustomField::find($cfId);
+
+        $rules = [
             'custom_field_id' => 'required|exists:custom_fields,id',
-            'value' => 'required',
-        ])->after($this->ensureDeviceDoesNotHaveCustomField($device, $request->custom_field_id));
+            'value'           => $customField?->valueRule() ?? 'required',
+        ];
+
+        $validator = Validator::make($request->all(), $rules)
+            ->after($this->ensureDeviceDoesNotHaveCustomField($device, $cfId));
 
         if ($validator->fails()) {
             if ($request->expectsJson()) {
                 return response()->json(['errors' => $validator->errors()], 422);
-            } else {
-                return redirect()->route('plugin.nmscustomfields.device.index', $device)->withErrors($validator);
             }
+            return redirect()->route('plugin.nmscustomfields.device.index', $device)->withErrors($validator);
         }
 
-        $device->customFields()->attach($request->custom_field_id);
-        $device = $device->fresh();
-        $customFieldDevice = $device->customFieldDevices->where('custom_field_id', $request->custom_field_id)->first();
-        CustomFieldValue::create([
-            'custom_field_device_id' => $customFieldDevice->id,
-            'value' => $request->value,
-        ]);
+        CustomFieldDevice::create(array_merge(
+            [
+                'device_id'       => $device->device_id,
+                'custom_field_id' => $cfId,
+            ],
+            CustomFieldDevice::columnsFor($customField->type, $request->input('value'))
+        ));
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
-        } else {
-            return redirect()->route('plugin.nmscustomfields.device.index', $device);
         }
+        return redirect()->route('plugin.nmscustomfields.device.index', $device);
     }
 
     // Save the custom field for a device
@@ -113,27 +114,26 @@ class DeviceCustomFieldController extends Controller
     {
         Gate::authorize('admin');
 
-        // validate the request
         $validator = Validator::make($request->all(), [
-            'value' => 'required',
+            'value' => $customdevicefield->customField->valueRule(),
         ]);
 
         if ($validator->fails()) {
             if ($request->expectsJson()) {
                 return response()->json(['errors' => $validator->errors()], 422);
-            } else {
-                return redirect()->route('plugin.nmscustomfields.device.index', $device)->withErrors($validator);
             }
+            return redirect()->route('plugin.nmscustomfields.device.index', $device)->withErrors($validator);
         }
 
-        $customdevicefield->customFieldValue->value = $request->value;
-        $customdevicefield->customFieldValue->save();
+        $customdevicefield->update(CustomFieldDevice::columnsFor(
+            $customdevicefield->customField->type,
+            $request->input('value')
+        ));
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
-        } else {
-            return redirect()->route('plugin.nmscustomfields.device.index', $device);
         }
+        return redirect()->route('plugin.nmscustomfields.device.index', $device);
     }
 
     // Edit value of a custom field for a device
@@ -145,8 +145,6 @@ class DeviceCustomFieldController extends Controller
         $alert_class = $device->disabled ? 'alert-info' : ($device->status ? '' : 'alert-danger');
         $parent_id = Vminfo::guessFromDevice($device)->value('device_id');
         $overview_graphs = [];
-
-        $customdevicefield->load('customFieldValue');
 
         return view('nmscustomfields::device.edit', compact('device', 'customdevicefield', 'alert_class', 'parent_id', 'overview_graphs'));
     }
@@ -161,14 +159,12 @@ class DeviceCustomFieldController extends Controller
             return $this->handleNotFound($request, $device);
         }
 
-        $customdevicefield->customFieldValue->delete();
         $customdevicefield->delete();
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
-        } else {
-            return redirect()->route('plugin.nmscustomfields.device.index', $device);
         }
+        return redirect()->route('plugin.nmscustomfields.device.index', $device);
     }
 
     // Upsert a custom field for a device
@@ -177,86 +173,136 @@ class DeviceCustomFieldController extends Controller
     {
         Gate::authorize('admin');
 
-        $validator = Validator::make($request->all(), [
-            'custom_field' => ['required', $this->customFieldExists($device)],
-            'value' => 'required|string',
-        ]);
+        // Resolve to numeric id first so we can read the type for the value rule.
+        $cfRef = $request->input('custom_field');
+        $customField = is_numeric($cfRef)
+            ? CustomField::find($cfRef)
+            : CustomField::where('name', $cfRef)->first();
 
+        $rules = [
+            'custom_field' => ['required', $this->customFieldExists($device)],
+            'value'        => $customField?->valueRule() ?? 'required',
+        ];
+
+        $validator = Validator::make($request->all(), $rules);
         if ($validator->fails()) {
             if ($request->expectsJson()) {
                 return response()->json(['errors' => $validator->errors()], 422);
-            } else {
-                return redirect()->route('plugin.nmscustomfields.device.index', $device)->withErrors($validator);
             }
+            return redirect()->route('plugin.nmscustomfields.device.index', $device)->withErrors($validator);
         }
 
-        // Resolve custom_field to ID if it is a name
-        $customField = $request->input('custom_field');
-        if (!is_numeric($customField)) {
-            $customField = CustomField::where('name', $customField)->first()->id;
-        }
-
-        $device->customFields()->syncWithoutDetaching($customField);
-        $device = $device->fresh();
-        $customFieldDevice = $device->customFieldDevices->where('custom_field_id', $customField)->first();
-
-        CustomFieldValue::updateOrCreate(
-            ['custom_field_device_id' => $customFieldDevice->id],
-            ['value' => $request->input('value')]
+        $cfd = CustomFieldDevice::updateOrCreate(
+            ['device_id' => $device->device_id, 'custom_field_id' => $customField->id],
+            CustomFieldDevice::columnsFor($customField->type, $request->input('value'))
         );
 
-
         if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'custom_field_device_id' => $customFieldDevice->id]);
-        } else {
-            return redirect()->route('plugin.nmscustomfields.device.index', $device);
+            return response()->json(['success' => true, 'custom_field_device_id' => $cfd->id]);
         }
+        return redirect()->route('plugin.nmscustomfields.device.index', $device);
     }
 
-    // Bulk edit custom fields for multiple devices
-    // POST /plugins/nmscustomfields/bulkedit
-    // ajax request
-    public function bulkedit(Request $request)
+    // Bulk-add a custom field to multiple devices (insert-only).
+    // POST /plugins/nmscustomfields/bulkstore
+    // ajax request — rejects with 422 if any device already has the field.
+    public function bulkStore(Request $request)
     {
         Gate::authorize('admin');
 
+        $cfId        = $request->input('custom_field_id');
+        $customField = CustomField::find($cfId);
+
         $request->validate([
-            'device_ids' => 'required|array',
-            'custom_field_id' => 'required|exists:custom_fields,id',
-            'custom_field_value' => 'required',
+            'device_ids'         => 'required|array',
+            'device_ids.*'       => 'integer',
+            'custom_field_id'    => 'required|exists:custom_fields,id',
+            'custom_field_value' => $customField?->valueRule() ?? 'required',
         ]);
 
-        $device_ids = $request->device_ids;
-        $custom_field_id = $request->custom_field_id;
-        $custom_field_value = $request->custom_field_value;
+        $deviceIds = $request->input('device_ids');
 
-        // device_id contains a list of all devices that should have this custom field
-        // we need to compare this list with the list of devices that already have this custom field
-        // and update the custom field value accordingly
-        // if the custom field is not present, we need to create it
-        // if the custom field is present but with a different value, we need to update it
-        // if the custom field is present for the device but not in the list, we need to delete it
-        $customFieldDevice = CustomFieldDevice::where('custom_field_id', $custom_field_id)
-            ->whereIn('device_id', $device_ids)
-            ->get();
+        $conflicts = CustomFieldDevice::where('custom_field_id', $cfId)
+            ->whereIn('device_id', $deviceIds)
+            ->pluck('device_id')
+            ->all();
 
-        $customFieldDevice->each(function ($customFieldDevice) use ($custom_field_value) {
-            $customFieldDevice->customFieldValue->value = $custom_field_value;
-            $customFieldDevice->customFieldValue->save();
-        });
+        if (! empty($conflicts)) {
+            $hostnames = Device::whereIn('device_id', $conflicts)
+                ->pluck('hostname', 'device_id')
+                ->all();
+            $names = array_map(
+                fn ($id) => $hostnames[$id] ?? "device #{$id}",
+                $conflicts
+            );
 
-        $device_ids = array_diff($device_ids, $customFieldDevice->pluck('device_id')->toArray());
+            return response()->json([
+                'message' => 'Some devices already have this field.',
+                'errors'  => [
+                    'device_ids' => ['Already has the field: ' . implode(', ', $names)],
+                ],
+            ], 422);
+        }
 
-        $device_ids = collect($device_ids)->map(function ($device_id) use ($custom_field_id, $custom_field_value) {
-            $device = Device::find($device_id);
-            $device->customFields()->syncWithoutDetaching($custom_field_id);
-            $device = $device->fresh();
-            $customFieldDevice = $device->customFieldDevices->where('custom_field_id', $custom_field_id)->first();
-            CustomFieldValue::create([
-                'custom_field_device_id' => $customFieldDevice->id,
-                'value' => $custom_field_value,
-            ]);
-        });
+        $cols = CustomFieldDevice::columnsFor($customField->type, $request->input('custom_field_value'));
+
+        foreach ($deviceIds as $deviceId) {
+            CustomFieldDevice::create(array_merge(
+                ['device_id' => $deviceId, 'custom_field_id' => $cfId],
+                $cols
+            ));
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    // Bulk-update the value of a custom field for multiple devices (update-only).
+    // POST /plugins/nmscustomfields/bulkupdate
+    // ajax request — rejects with 422 if any device doesn't already have the field.
+    public function bulkUpdate(Request $request)
+    {
+        Gate::authorize('admin');
+
+        $cfId        = $request->input('custom_field_id');
+        $customField = CustomField::find($cfId);
+
+        $request->validate([
+            'device_ids'         => 'required|array',
+            'device_ids.*'       => 'integer',
+            'custom_field_id'    => 'required|exists:custom_fields,id',
+            'custom_field_value' => $customField?->valueRule() ?? 'required',
+        ]);
+
+        $deviceIds = $request->input('device_ids');
+
+        $present = CustomFieldDevice::where('custom_field_id', $cfId)
+            ->whereIn('device_id', $deviceIds)
+            ->pluck('device_id')
+            ->all();
+        $missing = array_values(array_diff($deviceIds, $present));
+
+        if (! empty($missing)) {
+            $hostnames = Device::whereIn('device_id', $missing)
+                ->pluck('hostname', 'device_id')
+                ->all();
+            $names = array_map(
+                fn ($id) => $hostnames[$id] ?? "device #{$id}",
+                $missing
+            );
+
+            return response()->json([
+                'message' => 'Some devices do not have this field.',
+                'errors'  => [
+                    'device_ids' => ['Missing the field: ' . implode(', ', $names)],
+                ],
+            ], 422);
+        }
+
+        $cols = CustomFieldDevice::columnsFor($customField->type, $request->input('custom_field_value'));
+
+        CustomFieldDevice::where('custom_field_id', $cfId)
+            ->whereIn('device_id', $deviceIds)
+            ->update($cols);
 
         return response()->json(['success' => true]);
     }
@@ -269,21 +315,15 @@ class DeviceCustomFieldController extends Controller
         Gate::authorize('admin');
 
         $request->validate([
-            'device_ids' => 'required|string',
+            'device_ids'      => 'required|string',
             'custom_field_id' => 'required|exists:custom_fields,id',
         ]);
 
-        // device_ids may be a comma separated list
-        $request->device_ids = explode(',', $request->device_ids);
+        $deviceIds = explode(',', $request->input('device_ids'));
 
-        $customFieldDevice = CustomFieldDevice::where('custom_field_id', $request->custom_field_id)
-            ->whereIn('device_id', $request->device_ids)
-            ->get();
-
-        $customFieldDevice->each(function ($customFieldDevice) {
-            $customFieldDevice->customFieldValue->delete();
-            $customFieldDevice->delete();
-        });
+        CustomFieldDevice::where('custom_field_id', $request->input('custom_field_id'))
+            ->whereIn('device_id', $deviceIds)
+            ->delete();
 
         return response()->json(['success' => true]);
     }

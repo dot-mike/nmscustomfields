@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-05-27
+
+**Requires LibreNMS 26.5+.**
+
+Storage was simplified: custom field values used to live in their own
+table, now they sit directly on the device-field link. The REST API behaves the same.
+
+Text and integer fields are now separate types. Integer fields only accept whole numbers.
+
+### Breaking
+- `custom_field_values` table dropped. Values now live on `custom_field_device` as `value_text` / `value_int`.
+- `CustomFieldValue` model and `customFieldValue` relation removed.
+
+### Fixed
+- issue [#4](../../issues/4): integer fields no longer accept text. Rejected with 422 on all write paths.
+- Bulk edit / "add to devices" form on the per-field page silently dropped `custom_field_id` because the hidden input's `name` attribute had a leading space.
+- Device's custom fields page rendered "View [device.header] not found" on recent LibreNMS releases.
+
+### Migration notes
+The migration runs automatically and cleans up old data:
+- If you have two fields with the same name, the older one is kept and the duplicate is removed.
+- If a device has the same field set twice, the older link is kept.
+- For each device+field, the **newest** value from the old table wins. Older history is discarded. 
+
 ## [1.0.11] - 2026-05-27
 
 ### Fixed

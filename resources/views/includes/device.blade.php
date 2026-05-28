@@ -1,9 +1,7 @@
 @extends('layouts.librenmsv1')
 
 @section('content')
-
-<div class="container">
-    @include('device.header')
+<x-device.page :device="$device">
     <div class="row">
         <div class="col-md-12">
             <h2>Custom Fields Plugin</h2>
@@ -14,5 +12,5 @@
             @yield('content2')
         </div>
     </div>
-</div>
+</x-device.page>
 @endsection

@@ -2,6 +2,10 @@
 
 _nmscustomfields_ - A LibreNMS plugin package to add support for creating custom fields for devices.
 
+## Requirements
+
+LibreNMS **26.5 or newer**. Older releases are not supported by 2.x.
+
 ## Installation
 
 ### Without Docker
@@ -12,7 +16,6 @@ Go to the LibreNMS base directory and run the following commands as librenms use
 ./lnms plugin:add dot-mike/nmscustomfields
 php artisan migrate --path=vendor/dot-mike/nmscustomfields/database/migrations
 php artisan route:clear
-php lnms --force -n migrate
 ```
 
 ### With Docker
@@ -22,7 +25,7 @@ If you are using LibreNMS with Docker, you can install the plugin by customizing
 Example Dockerfile:
 
 ```Dockerfile
-ARG VERSION=librenms:23.8.2
+ARG VERSION=librenms:26.5.1
 FROM librenms/$VERSION
 
 RUN apk --update --no-cache add -t build-dependencies php-xmlwriter
@@ -48,6 +51,15 @@ To get started, open LibreNMS and enable the plugin by navigating to Overview->P
 
 Navigate to Overview->Plugins->Custom Fields Plugin to start adding custom fields that will be available for devices.
 Here you will also be able to manage the field values in bulk.
+
+### Field types
+
+Each custom field has a `type` chosen at creation:
+
+- `text` — free-form string
+- `integer` — whole numbers only
+
+The `value` field returned by the API is typed: integers come back as JSON numbers, text as strings, and missing values as `null`.
 
 ### Editing Custom Fields for a Device
 
@@ -190,7 +202,7 @@ POST /api/v0/customfields/query
 
 Possible parameters for the filter are:
 - `field`: The field name to filter on.
-- `operator`: The operator to use for the filter. Possible values are `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`, `not_like`, `exists`, `not_exists`.
+- `operator`: The operator to use for the filter. Possible values are `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `like`, `not_like`, `exists`, `not_exists`. Numeric operators (`gt`/`gte`/`lt`/`lte`) apply only to fields whose `type` is `integer`; `like`/`not_like` apply only to text fields. Mismatched operator/field combinations are silently skipped.
 - `value`: The value to filter on if the operator is not `exists` or `not_exists`.
 
 Example output:

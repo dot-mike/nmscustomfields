@@ -12,13 +12,10 @@ use App\Models\Device;
  */
 function get_custom_field_value(Device $device, string $fieldName)
 {
-    // Find the custom field device record associated with the device and field name
-    $customFieldDevice = CustomFieldDevice::whereHas('customField', function ($query) use ($fieldName) {
-        $query->where('name', $fieldName);
-    })->where('device_id', $device->device_id)->first();
+    $cfd = CustomFieldDevice::query()
+        ->whereHas('customField', fn ($q) => $q->where('name', $fieldName))
+        ->where('device_id', $device->device_id)
+        ->first();
 
-    // Return the value if the custom field device exists
-    return $customFieldDevice && $customFieldDevice->customFieldValue
-        ? $customFieldDevice->customFieldValue->value
-        : null;
+    return $cfd ? $cfd->value : null;
 }

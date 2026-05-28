@@ -15,4 +15,9 @@ class CustomField extends Model
             ->withPivot('id as custom_field_device_id')
             ->withTimestamps();
     }
+
+    public function valueRule(): string
+    {
+        return $this->type === 'integer' ? 'required|integer' : 'required';
+    }
 }

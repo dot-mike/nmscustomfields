@@ -17,23 +17,20 @@ class CustomFieldValueController extends TableController
 {
     protected function baseQuery(Request $request): Builder|\Illuminate\Database\Query\Builder
     {
-        return CustomFieldDevice::with(['device', 'customFieldValue']);
+        return CustomFieldDevice::with(['device', 'customField']);
     }
 
     protected function search(?string $search, Builder $query, array $fields): Builder
     {
         if ($search) {
-            $query->where(function ($subquery) use ($search) {
-                $subquery->whereHas('device', function ($deviceQuery) use ($search) {
-                    $deviceQuery->where('hostname', 'like', '%' . $search . '%')
-                        ->orWhere('sysName', 'like', '%' . $search . '%');
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('device', function ($dq) use ($search) {
+                    $dq->where('hostname', 'like', '%' . $search . '%')
+                       ->orWhere('sysName', 'like', '%' . $search . '%');
                 })
-                    ->orWhereHas('customFieldValue', function ($valueQuery) use ($search) {
-                        $valueQuery->where('value', 'like', '%' . $search . '%');
-                    });
-            });
-
-            $query->distinct();
+                ->orWhere('custom_field_device.value_text', 'like', '%' . $search . '%')
+                ->orWhereRaw('CAST(custom_field_device.value_int AS CHAR) LIKE ?', ['%' . $search . '%']);
+            })->distinct();
         }
 
         return $query;
@@ -57,12 +54,12 @@ class CustomFieldValueController extends TableController
     public function formatItem(Model $model): Model|array|Collection
     {
         return [
-            'device_id' => $model->device_id,
-            'hostname' => $model->device->hostname,
-            'sysName' => $model->device->sysName,
-            'custom_field_id' => $model->custom_field_id,
-            'custom_field_value' => $model->customFieldValue->value,
-            'custom_field_value_id' => $model->customFieldValue->id,
+            'device_id'              => $model->device_id,
+            'hostname'               => $model->device->hostname,
+            'sysName'                => $model->device->sysName,
+            'custom_field_id'        => $model->custom_field_id,
+            'custom_field_value'     => $model->value, // accessor: string|null
+            'custom_field_device_id' => $model->id,
         ];
     }
 
@@ -75,6 +72,8 @@ class CustomFieldValueController extends TableController
         $joinTables = [];
 
         foreach ($request->get('sort') as $column => $direction) {
+            $direction = strtolower($direction) === 'desc' ? 'desc' : 'asc';
+
             switch ($column) {
                 case 'hostname':
                 case 'sysName':
@@ -86,11 +85,8 @@ class CustomFieldValueController extends TableController
                     break;
 
                 case 'custom_field_value':
-                    if (!in_array('custom_field_values', $joinTables)) {
-                        $query->leftJoin('custom_field_values', 'custom_field_device.id', '=', 'custom_field_values.custom_field_device_id');
-                        $joinTables[] = 'custom_field_values';
-                    }
-                    $query->orderBy('custom_field_values.value', $direction);
+                    // Order by COALESCE(value_text, CAST(value_int AS CHAR)).
+                    $query->orderByRaw("COALESCE(custom_field_device.value_text, CAST(custom_field_device.value_int AS CHAR)) $direction");
                     break;
 
                 default:
@@ -164,7 +160,7 @@ class CustomFieldValueController extends TableController
             $item->device->hostname,
             $item->device->sysName,
             $item->custom_field_id,
-            $item->customFieldValue->value,
+            $item->value,
         ];
     }
 

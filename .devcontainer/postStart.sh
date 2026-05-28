@@ -74,7 +74,6 @@ php artisan route:clear
 
 echo -e "Environment setup done. Librenms installed in ${LIBRENMS_FOLDER}.\nHappy coding!"
 
-php artisan vendor:publish --provider="DotMike\Devicefields\Providers\DeviceFieldsProvider" --force
 php lnms --force -n migrate || true
 
 #php artisan cache:clear

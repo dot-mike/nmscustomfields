@@ -2,19 +2,15 @@
 
 namespace DotMike\NmsCustomFields\Http\Controllers;
 
-use Composer\Util\Http\Response;
 use DotMike\NmsCustomFields\Models\CustomField;
-use DotMike\NmsCustomFields\Models\CustomFieldDevice;
 
 use App\Models\Device;
 
 use Illuminate\Routing\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
 use Gate;
-use Validator;
 use InvalidArgumentException;
 
 class CustomFieldController extends Controller
@@ -48,7 +44,7 @@ class CustomFieldController extends Controller
         $validated = $request->validate([
             'filters' => 'required|array',
             'filters.*.field' => 'required|string',
-            'filters.*.operator' => 'required|string|in:eq,ne,lt,gt,lte,gte,exists,not_exists',
+            'filters.*.operator' => 'required|string|in:eq,ne,lt,gt,lte,gte,like,not_like,exists,not_exists',
             'filters.*.value' => 'required_unless:filters.*.operator,exists,not_exists',
             'fields' => 'array',
             'fields.*' => 'string',
@@ -92,33 +88,38 @@ class CustomFieldController extends Controller
                             });
                             break;
 
-                            // Handle comparison operators for text fields with numeric values
                         case 'lte':
                         case 'gte':
                         case 'lt':
                         case 'gt':
                             if ($isNumericField) {
-                                $operator = $this->mapOperator($filter['operator']); // e.g. "lte", "gte"
-                                $subQuery->whereHas('customFieldDevices', function ($defaultQuery) use ($filter, $operator) {
-                                    $defaultQuery->whereHas('customField', function ($customFieldQuery) use ($filter) {
-                                        $customFieldQuery->where('name', $filter['field']);
-                                    })->whereHas('customFieldValue', function ($valueQuery) use ($filter, $operator) {
-                                        // Cast value as integer for comparison
-                                        $valueQuery->whereRaw("CAST(value AS UNSIGNED) $operator ?", [$filter['value']]);
-                                    });
+                                $operator = $this->mapOperator($filter['operator']);
+                                $subQuery->whereHas('customFieldDevices', function ($q) use ($filter, $operator) {
+                                    $q->whereHas('customField', fn ($cf) => $cf->where('name', $filter['field']))
+                                      ->where('value_int', $operator, (int) $filter['value']);
+                                });
+                            }
+                            break;
+
+                        case 'like':
+                        case 'not_like':
+                            // Text-only; silently skip on integer fields (matches lt/gt skipping text fields).
+                            // Caller-supplied % and _ wildcards are passed through intentionally.
+                            if (! $isNumericField) {
+                                $sqlOp = $filter['operator'] === 'like' ? 'LIKE' : 'NOT LIKE';
+                                $subQuery->whereHas('customFieldDevices', function ($q) use ($filter, $sqlOp) {
+                                    $q->whereHas('customField', fn ($cf) => $cf->where('name', $filter['field']))
+                                      ->where('value_text', $sqlOp, '%' . $filter['value'] . '%');
                                 });
                             }
                             break;
 
                         default:
-                            // Filter for devices with custom field value
                             $operator = $this->mapOperator($filter['operator']);
-                            $subQuery->whereHas('customFieldDevices', function ($defaultQuery) use ($filter, $operator) {
-                                $defaultQuery->whereHas('customField', function ($customFieldQuery) use ($filter) {
-                                    $customFieldQuery->where('name', $filter['field']);
-                                })->whereHas('customFieldValue', function ($valueQuery) use ($filter, $operator) {
-                                    $valueQuery->where('value', $operator, $filter['value']);
-                                });
+                            $valueCol = $isNumericField ? 'value_int' : 'value_text';
+                            $subQuery->whereHas('customFieldDevices', function ($q) use ($filter, $operator, $valueCol) {
+                                $q->whereHas('customField', fn ($cf) => $cf->where('name', $filter['field']))
+                                  ->where($valueCol, $operator, $filter['value']);
                             });
                             break;
                     }
@@ -149,26 +150,16 @@ class CustomFieldController extends Controller
             $deviceFields = array_merge($deviceFields, $fields);
         }
 
-        $query->select($deviceFields);
+        $query->select($deviceFields)->with('customFieldDevices.customField');
 
         // Pagination
         $paginator = $query->paginate($validated['perPage'] ?? 15, ['*'], 'page', $validated['page'] ?? 1);
         $results = $paginator->getCollection()->map(function ($item) {
             $itemArray = $item->toArray();
-
-            // Fetch custom fields for each device
-            $customFields = CustomFieldDevice::where('device_id', $item->device_id)
-                ->with('customFieldValue', 'customField')
-                ->get()
-                ->map(function ($fieldDevice) {
-                    return [
-                        'field_name' => $fieldDevice->customField->name,
-                        'value' => optional($fieldDevice->customFieldValue)->value,
-                    ];
-                });
-
-            $itemArray['custom_fields'] = $customFields;
-
+            $itemArray['custom_fields'] = $item->customFieldDevices->map(fn ($cfd) => [
+                'field_name' => $cfd->customField->name,
+                'value'      => $cfd->value,
+            ]);
             return $itemArray;
         });
 
@@ -208,11 +199,6 @@ class CustomFieldController extends Controller
         $customfield = CustomField::create($data);
 
         return redirect()->route('plugin.nmscustomfields.customfield.index')->with('success', 'Custom field created.');
-    }
-
-    public function show(CustomField $customfield)
-    {
-        return redirect()->route('plugin.nmscustomfields.customfield.index');
     }
 
     // show form to edit custom field
@@ -260,38 +246,16 @@ class CustomFieldController extends Controller
     }
 
 
-    // return all custom fields as json
-    public function fields()
-    {
-        Gate::authorize('admin');
-
-        $fields = CustomField::select('id', 'name', 'type')->get();
-
-        if ($fields->isEmpty()) {
-            return response()->json([])->setStatusCode(204);
-        }
-
-        return response()->json($fields);
-    }
-
     // destroy field with json
     // POST DELETE plugins/nmscustomfields/customfield/{customfield}
     public function destroy(Request $request, CustomField $customfield)
     {
         Gate::authorize('admin');
 
-        $validator = Validator::make($request->all(), [])->after(function ($validator) use ($customfield) {
-            if ($customfield->devices()->count() > 0) {
-                $validator->errors()->add(
-                    'customfield',
-                    'Custom field is in use by one or more devices.
-                <a href="' . route('plugin.nmscustomfields.customfield.devices', ['customfield' => $customfield]) . '">View devices with this field.</a>'
-                );
-            }
-        });
-
-        if ($validator->fails()) {
-            return redirect()->route('plugin.nmscustomfields.customfield.index')->withErrors($validator);
+        if ($customfield->devices()->exists()) {
+            return redirect()
+                ->route('plugin.nmscustomfields.customfield.devices', ['customfield' => $customfield])
+                ->with('warning', 'Cannot delete: this custom field is in use by one or more devices. Remove it from all devices first.');
         }
 
         $customfield->delete();

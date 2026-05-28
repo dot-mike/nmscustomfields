@@ -2,8 +2,6 @@
 
 namespace DotMike\NmsCustomFields\Hooks;
 
-use DotMike\NmsCustomFields\Models\CustomField;
-
 use App\Plugins\Hooks\DeviceOverviewHook;
 
 class DeviceOverview extends DeviceOverviewHook
@@ -12,12 +10,9 @@ class DeviceOverview extends DeviceOverviewHook
 
     public function data($device): array
     {
-
-        $customFields = $device->customFieldValuesWithNames()->get();
-
         return [
             'device' => $device,
-            'customFields' => $customFields,
+            'customFields' => $device->customFieldDevices()->with('customField')->get(),
         ];
     }
 }

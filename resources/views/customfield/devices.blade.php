@@ -44,20 +44,18 @@
                 </button>
             </div>
             <div class="modal-body">
-                <form id="bulk-edit-form" action="{{ route('plugin.nmscustomfields.devicefield.bulkedit') }}">
+                <form id="bulk-edit-form" action="{{ route('plugin.nmscustomfields.devicefield.bulkupdate') }}">
                     <div class="form-group">
                         <label for="bulk-edit-select-devices">Apply to devices</label>
                         <select id="bulk-edit-select-devices" name="device_ids[]" class="form-control" multiple="multiple"></select>
-                        <span class="help-block">Select devices to apply the custom field value to.<br>
-                            <strong>Note:</strong> If you remove a device from the list, the custom field value will also be removed from that device.</span>
-                        </span>
+                        <span class="help-block">These are the devices selected in the table. Remove a device from this list to skip it (its value is left unchanged). To delete values, use Bulk Delete.</span>
                     </div>
-                    <div id="alert-container" class="alert alert-warning hidden" role="alert"></div>
+                    <div id="bulk-edit-alert" class="alert alert-warning hidden" role="alert"></div>
                     <div class="form-group">
                         <label for="custom-field-value">Value for <strong id="bulk-edit-field-name-label"></strong></label>
                         <input type="text" class="form-control" id="blkeddit-custom-field-value" name="custom_field_value" placeholder="Enter value">
                     </div>
-                    <input type="hidden" id="blkedit_custom_field_id" name=" custom_field_id" value="{{ $customfield->id }}">
+                    <input type="hidden" id="blkedit_custom_field_id" name="custom_field_id" value="{{ $customfield->id }}">
                 </form>
             </div>
             <div class="modal-footer">
@@ -79,18 +77,18 @@
                 </button>
             </div>
             <div class="modal-body">
-                <form id="add-device-form" action="{{ route('plugin.nmscustomfields.devicefield.bulkedit') }}">
+                <form id="add-device-form" action="{{ route('plugin.nmscustomfields.devicefield.bulkstore') }}">
                     <div class="form-group">
                         <label for="add-device-select-devices">Apply to devices</label>
                         <select id="add-device-select-devices" name="device_ids[]" class="form-control" multiple="multiple"></select>
-                        <span class="help-block">Select devices to apply the custom field value to.</span>
+                        <span class="help-block">Pick devices that don't yet have this field. Devices that already have it are filtered out of the list.</span>
                     </div>
-                    <div id="alert-container" class="alert alert-warning hidden" role="alert"></div>
+                    <div id="add-device-alert" class="alert alert-warning hidden" role="alert"></div>
                     <div class="form-group">
                         <label for="custom-field-value">Custom Field Value</label>
                         <input type="text" class="form-control" id="adddevice-custom-field-value" name="custom_field_value" placeholder="Enter value">
                     </div>
-                    <input type="hidden" id="adddevice_custom_field_id" name=" custom_field_id" value="{{ $customfield->id }}">
+                    <input type="hidden" id="adddevice_custom_field_id" name="custom_field_id" value="{{ $customfield->id }}">
                 </form>
             </div>
             <div class="modal-footer">
@@ -116,8 +114,18 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
 <script>
     var fieldEditUrl = "{!! route('plugin.nmscustomfields.devicefield.edit', ['device' => ':device', 'customdevicefield' => ':customfield']) !!}";
     var fieldDeleteUrl = "{!! route('plugin.nmscustomfields.devicefield.destroy', ['device' => ':device', 'customdevicefield' => ':customfield']) !!}";
+    var initialFieldType = "{{ $customfield->type }}";
 
     $(function() {
+        function applyValueInputType(type) {
+            let isInt = (type === 'integer');
+            $('#blkeddit-custom-field-value, #adddevice-custom-field-value')
+                .attr('type', isInt ? 'number' : 'text');
+        }
+
+        // Initial swap based on the field currently selected at page render.
+        applyValueInputType(initialFieldType);
+
         var grid = $("#device-customfields-table");
 
         grid.on("initialized.rs.jquery.bootgrid", function(e) {
@@ -153,6 +161,12 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
             }).on("select2:clearing", function(e) {
                 e.preventDefault();
             });
+
+            custom_field_id.on('change', function() {
+                // Pull the chosen field's type from the select2 data and update the modal inputs.
+                let data = $(this).select2('data')[0];
+                applyValueInputType(data ? data.type : 'text');
+            });
         })
 
         grid.bootgrid({
@@ -182,9 +196,9 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
                     return "<a href=\"" + url + "\">" + row[column.id] + "</a>";
                 },
                 "commands": function(column, row) {
-                    let editUrl = fieldEditUrl.replace(':device', row.device_id).replace(':customfield', row.custom_field_value_id);
+                    let editUrl = fieldEditUrl.replace(':device', row.device_id).replace(':customfield', row.custom_field_device_id);
                     return "<a href=\"" + editUrl + "\" class=\"btn btn-xs btn-default command-edit\"><span class=\"glyphicon glyphicon-edit\"></span > </a> " +
-                        "<button class=\"btn btn-xs btn-default command-delete\" x-data-device_id=\"" + row.device_id + "\" x-data-custom_field_value_id=\"" + row.custom_field_value_id + "\"><span class=\"glyphicon glyphicon-trash\"></span></button>";
+                        "<button class=\"btn btn-xs btn-default command-delete\" x-data-device_id=\"" + row.device_id + "\" x-data-custom_field_device_id=\"" + row.custom_field_device_id + "\"><span class=\"glyphicon glyphicon-trash\"></span></button>";
                 }
             },
 
@@ -205,7 +219,7 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
                 $('#bootgrid_selected_field_name').text(selected_field_name);
 
                 $("#add-devices-btn").on('click', function(event) {
-                    $('#bulkEditModal').modal('show');
+                    $('#addDeviceModal').modal('show');
                 });
             }
 
@@ -216,8 +230,8 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
                 }
 
                 let device_id = $(this).attr('x-data-device_id');
-                let custom_field_value_id = $(this).attr('x-data-custom_field_value_id');
-                let url = fieldDeleteUrl.replace(':device', device_id).replace(':customfield', custom_field_value_id);
+                let custom_field_device_id = $(this).attr('x-data-custom_field_device_id');
+                let url = fieldDeleteUrl.replace(':device', device_id).replace(':customfield', custom_field_device_id);
                 $.ajax({
                     type: "DELETE",
                     url: url,
@@ -231,13 +245,19 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
             });
 
         }).on("selected.rs.jquery.bootgrid", function(e, rows) {
-            // Enable bulk edit button when rows are selected
             $('#bulk-edit-btn').prop('disabled', false);
             $('#bulk-delete-btn').prop('disabled', false);
+            // Selection is exclusive: while rows are selected, Add device is hidden
+            // behind a tooltip explaining why.
+            $('#device-add-btn').prop('disabled', true)
+                .attr('title', 'Deselect rows to add new devices');
         }).on("deselected.rs.jquery.bootgrid", function(e, rows) {
-            // Disable bulk edit button when rows are deselected
-            $('#bulk-edit-btn').prop('disabled', true);
-            $('#bulk-delete-btn').prop('disabled', true);
+            let stillSelected = grid.bootgrid("getSelectedRows");
+            if (stillSelected.length === 0) {
+                $('#bulk-edit-btn').prop('disabled', true);
+                $('#bulk-delete-btn').prop('disabled', true);
+                $('#device-add-btn').prop('disabled', false).removeAttr('title');
+            }
         });
 
         // Handle bulk edit button click
@@ -283,15 +303,12 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
 
         // bind shown to modal to focus on input field
         $('#bulkEditModal').on('shown.bs.modal', function() {
-            // Initialize Select2 for the multi-select field
+            // Bulk Edit is update-only: the list is pre-filled from the table
+            // selection and users may only remove entries to skip them. No AJAX
+            // source means the dropdown stays empty — nothing new can be added.
             $('#bulk-edit-select-devices').select2({
-                placeholder: "Search for devices",
-                ajax: {
-                    url: '{{ route("ajax.select.device") }}',
-                    dataType: 'json',
-                    delay: 250,
-                    cache: true
-                }
+                placeholder: "Selected devices",
+                minimumResultsForSearch: -1
             });
 
             let selectDevices = $('#bulk-edit-select-devices');
@@ -301,7 +318,7 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
             inputField.val('');
 
             // Always hide the alert container when opening the modal
-            $('#alert-container').addClass('hidden').empty();
+            $('#bulk-edit-alert').addClass('hidden').empty();
 
             let fieldName = $('#custom_field_id option:selected').text();
             $('#bulk-edit-field-name').text(fieldName);
@@ -320,7 +337,7 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
                 } else {
                     inputField.val('');
                     inputField.attr('placeholder', 'Enter new value that will replace all existing values');
-                    $('#alert-container').text(multipleValuesWarning).removeClass('hidden');
+                    $('#bulk-edit-alert').text(multipleValuesWarning).removeClass('hidden');
                 }
 
                 // Populate Select2 with selected devices
@@ -342,6 +359,7 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
             let form = $('#bulk-edit-form');
             let url = form.attr('action');
             let data = form.serialize();
+            $('#bulk-edit-alert').addClass('hidden').empty();
             $.ajax({
                 type: "POST",
                 url: url,
@@ -350,22 +368,40 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
                     $('#bulkEditModal').modal('hide');
                     grid.bootgrid("reload");
                 },
-                error: function(response) {
-                    console.log(response);
+                error: function(xhr) {
+                    let msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Save failed.';
+                    let errs = xhr.responseJSON && xhr.responseJSON.errors;
+                    if (errs) {
+                        msg += ' ' + Object.values(errs).flat().join(' ');
+                    }
+                    $('#bulk-edit-alert').text(msg).removeClass('hidden');
                 }
             });
         });
 
         // bind shown to modal to focus on input field
         $('#addDeviceModal').on('shown.bs.modal', function() {
-            // Initialize Select2 for the multi-select field
+            let currentFieldId = $("#custom_field_id").val();
+
+            // Picker is server-filtered to devices that don't yet have this field.
+            // Re-init each open so a fresh custom_field_id is passed.
+            if ($('#add-device-select-devices').data('select2')) {
+                $('#add-device-select-devices').select2('destroy');
+            }
             $('#add-device-select-devices').select2({
                 placeholder: "Search for devices",
                 ajax: {
-                    url: '{{ route("ajax.select.device") }}',
+                    url: '{{ route("plugin.nmscustomfields.select.devices-without-field") }}',
                     dataType: 'json',
                     delay: 250,
-                    cache: true
+                    cache: true,
+                    data: function(params) {
+                        return {
+                            term: params.term,
+                            page: params.page,
+                            custom_field_id: currentFieldId
+                        };
+                    }
                 }
             });
 
@@ -376,13 +412,14 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
             inputField.val('');
 
             $('#custom-field-value').focus();
-            $('#adddevice_custom_field_id').val($("#custom_field_id").val());
+            $('#adddevice_custom_field_id').val(currentFieldId);
         });
 
         $("div#addDeviceModal").on('click', '#adddevice-btn', function() {
             let form = $('#add-device-form');
             let url = form.attr('action');
             let data = form.serialize();
+            $('#add-device-alert').addClass('hidden').empty();
             $.ajax({
                 type: "POST",
                 url: url,
@@ -391,8 +428,13 @@ $escapedHeaderTemplate = substr($escapedHeaderTemplate, 1, -1);
                     $('#addDeviceModal').modal('hide');
                     grid.bootgrid("reload");
                 },
-                error: function(response) {
-                    console.log(response);
+                error: function(xhr) {
+                    let msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Save failed.';
+                    let errs = xhr.responseJSON && xhr.responseJSON.errors;
+                    if (errs) {
+                        msg += ' ' + Object.values(errs).flat().join(' ');
+                    }
+                    $('#add-device-alert').text(msg).removeClass('hidden');
                 }
             });
         });

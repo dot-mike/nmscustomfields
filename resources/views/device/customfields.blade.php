@@ -25,7 +25,7 @@
                 <table id="manage-custom-fields-table" class="table table-striped table-hover table-responsive table-condensed">
                     <thead>
                         <tr>
-                            <th data-column-id="custom_field_value_id" data-identifier="true" data-type="numeric" data-visible="false">Field ID</th>
+                            <th data-column-id="custom_field_device_id" data-identifier="true" data-type="numeric" data-visible="false">Field ID</th>
                             <th data-column-id="custom_field_name">Field Name</th>
                             <th data-column-id="custom_field_value">Value</th>
                             <th data-column-id="commands" data-formatter="commands" data-sortable="false">Actions</th>
@@ -61,8 +61,8 @@
 
             formatters: {
                 "commands": function(column, row) {
-                    return "<button type=\"button\" class=\"btn btn-xs btn-default command-edit\" data-row-id=\"" + row.custom_field_value_id + "\"><span class=\"glyphicon glyphicon-edit\"></span></button> " +
-                        "<button type=\"button\" class=\"btn btn-xs btn-default command-delete\" data-row-id=\"" + row.custom_field_value_id + "\"><span class=\"glyphicon glyphicon-trash\"></span></button>";
+                    return "<button type=\"button\" class=\"btn btn-xs btn-default command-edit\" data-row-id=\"" + row.custom_field_device_id + "\"><span class=\"glyphicon glyphicon-edit\"></span></button> " +
+                        "<button type=\"button\" class=\"btn btn-xs btn-default command-delete\" data-row-id=\"" + row.custom_field_device_id + "\"><span class=\"glyphicon glyphicon-trash\"></span></button>";
                 }
             },
 
@@ -81,14 +81,14 @@
             grid.find(".command-edit").on("click", function(e) {
                 var row_index = $(this).closest('tr').index();
                 var row = grid.bootgrid("getCurrentRows")[row_index];
-                var url = fieldEditUrl.replace(':device', device_id).replace(':customfield', row.custom_field_value_id);
+                var url = fieldEditUrl.replace(':device', device_id).replace(':customfield', row.custom_field_device_id);
                 window.location.href = url;
             })
 
             grid.find(".command-delete").on("click", function(e) {
                 var row_index = $(this).closest('tr').index();
                 var row = grid.bootgrid("getCurrentRows")[row_index];
-                var url = fieldDeleteUrl.replace(':device', device_id).replace(':customfield', row.custom_field_value_id);
+                var url = fieldDeleteUrl.replace(':device', device_id).replace(':customfield', row.custom_field_device_id);
 
                 $.ajax({
                     url: url,

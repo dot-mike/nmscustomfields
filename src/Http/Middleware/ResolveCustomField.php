@@ -19,29 +19,23 @@ class ResolveCustomField
      */
     public function handle(Request $request, Closure $next)
     {
-        $customdevicefield = $request->route('customdevicefield');
-        $customdevicefield = strtolower($customdevicefield);
+        $param = $request->route('customdevicefield');
 
-        if ($customdevicefield) {
-            if ($customdevicefield instanceof CustomFieldDevice) {
-                return $next($request);
-            } else {
-                $customdevicefieldModel = null;
-
-                if (is_numeric($customdevicefield)) {
-                    $customdevicefieldModel = CustomFieldDevice::findOrFail($customdevicefield);
-                } else {
-                    $device = $request->route('device');
-                    $customdevicefieldModel = CustomFieldDevice::whereHas('customField', function ($query) use ($customdevicefield) {
-                        $query->whereRaw('LOWER(name) = ?', [$customdevicefield]);
-                    })->where('device_id', $device->device_id)->firstOrFail();
-                }
-
-                $request->route()->setParameter('customdevicefield', $customdevicefieldModel);
-            }
-
-            $request->route()->setParameter('customdevicefield', $customdevicefieldModel);
+        // No route parameter, or already resolved by Laravel's implicit binding.
+        if ($param === null || $param instanceof CustomFieldDevice) {
+            return $next($request);
         }
+
+        if (is_numeric($param)) {
+            $model = CustomFieldDevice::findOrFail($param);
+        } else {
+            $device = $request->route('device');
+            $model = CustomFieldDevice::whereHas('customField', function ($query) use ($param) {
+                $query->whereRaw('LOWER(name) = ?', [strtolower((string) $param)]);
+            })->where('device_id', $device->device_id)->firstOrFail();
+        }
+
+        $request->route()->setParameter('customdevicefield', $model);
 
         return $next($request);
     }

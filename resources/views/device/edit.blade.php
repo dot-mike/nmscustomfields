@@ -34,9 +34,17 @@
                 </div>
 
                 <div class="form-group ">
-                    <label for="name" class="control-label col-sm-3 col-md-2 text-nowrap">Value</label>
+                    <label for="value" class="control-label col-sm-3 col-md-2 text-nowrap">Value</label>
                     <div class="col-sm-9 col-md-10">
-                        <input type="text" class="form-control" name="value" id="value" value="{{ $customdevicefield->customFieldValue->value ?? old('value') }}" required="required" autofocus="autofocus">
+                        <input
+                            type="{{ $customdevicefield->customField->type === 'integer' ? 'number' : 'text' }}"
+                            @if($customdevicefield->customField->type === 'integer') step="1" @endif
+                            class="form-control"
+                            name="value"
+                            id="value"
+                            value="{{ old('value', $customdevicefield->value) }}"
+                            required="required"
+                            autofocus="autofocus">
                         <span class="help-block"></span>
                     </div>
                 </div>

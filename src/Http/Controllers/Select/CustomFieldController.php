@@ -3,16 +3,26 @@
 namespace DotMike\NmsCustomFields\Http\Controllers\Select;
 
 use DotMike\NmsCustomFields\Models\CustomField;
-use DotMike\NmsCustomFields\Models\CustomFieldDevice;
 
 use App\Http\Controllers\Select\SelectController;
 
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 
 class CustomFieldController extends SelectController
 {
+    public function formatItem(Model $model): array
+    {
+        return [
+            'id'   => $model->id,
+            'text' => $model->name,
+            'type' => $model->type,
+        ];
+    }
+
+
     protected function rules(): array
     {
         return [];
@@ -30,7 +40,7 @@ class CustomFieldController extends SelectController
 
     protected function baseQuery(Request $request): EloquentBuilder|Builder
     {
-        $query = CustomField::select('id', 'name');
+        $query = CustomField::select('id', 'name', 'type');
 
         $filter = $request->input('filter', 'all');
         $device = $request->input('device');

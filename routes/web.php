@@ -13,16 +13,18 @@ Route::group(['middleware' => ['resolve.device', 'web', 'auth'], 'guard' => 'aut
                 Route::get('/', 'PluginAdminController@index')->name('index');
                 Route::get('/customfield/devices', 'CustomFieldController@devices')->name('customfield.devices');
                 // named route: plugin.nmscustomfields.customfield.
-                Route::resource('customfield', 'CustomFieldController');
+                Route::resource('customfield', 'CustomFieldController')->except(['show']);
 
                 // Bulk actions
-                Route::post('bulkedit', 'DeviceCustomFieldController@bulkEdit')->name('devicefield.bulkedit');
+                Route::post('bulkstore', 'DeviceCustomFieldController@bulkStore')->name('devicefield.bulkstore');
+                Route::post('bulkupdate', 'DeviceCustomFieldController@bulkUpdate')->name('devicefield.bulkupdate');
                 Route::post('bulkdestroy', 'DeviceCustomFieldController@bulkDestroy')->name('devicefield.bulkdestroy');
 
                 // Ajax routes
                 Route::prefix('ajax')->group(function () {
                     Route::prefix('select')->namespace('Select')->group(function () {
                         Route::get('customfields', 'CustomFieldController')->name('select.customfields');
+                        Route::get('devices-without-field', 'DeviceWithoutFieldController')->name('select.devices-without-field');
                     });
 
                     Route::prefix('table')->namespace('Table')->group(function () {

@@ -15,7 +15,6 @@ use App\Models\Device;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Blade;
 
 class CustomFieldsProvider extends ServiceProvider
 {
@@ -52,50 +51,17 @@ class CustomFieldsProvider extends ServiceProvider
         $this->loadTranslationsFrom(__DIR__ . '/../../resources/lang', $pluginName);
         $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
 
-
-        Blade::directive('customFieldValue', function ($expression) {
-            return "<?php echo customFieldValue($expression); ?>";
-        });
-
         $this->loadHelpers();
     }
 
     protected function registerDynamicRelations(): void
     {
-
-        Device::resolveRelationUsing('customFields', function ($device) {
-            return $device->belongsToMany(
-                \DotMike\NmsCustomFields\Models\CustomField::class,
-                'custom_field_device',
-                'device_id',
-                'custom_field_id'
-            )->withPivot('device_id');
-        });
-
         Device::resolveRelationUsing('customFieldDevices', function ($device) {
             return $device->hasMany(
                 \DotMike\NmsCustomFields\Models\CustomFieldDevice::class,
                 'device_id',
                 'device_id'
             );
-        });
-
-        Device::resolveRelationUsing('customFieldValues', function ($device) {
-            return $device->hasManyThrough(
-                \DotMike\NmsCustomFields\Models\CustomFieldValue::class,
-                \DotMike\NmsCustomFields\Models\CustomFieldDevice::class,
-                'device_id', // Foreign key on custom_field_device table...
-                'custom_field_device_id', // Foreign key on custom_field_values table...
-                'device_id', // Local key on devices table...
-                'id'  // Local key on custom_field_device table...
-            );
-        });
-
-        Device::resolveRelationUsing('customFieldValuesWithNames', function ($device) {
-            return $device->customFieldValues()
-                ->join('custom_field_device as cfd', 'custom_field_values.custom_field_device_id', '=', 'cfd.id')
-                ->join('custom_fields', 'cfd.custom_field_id', '=', 'custom_fields.id')
-                ->select('custom_fields.name as field_name', 'custom_field_values.value as field_value');
         });
     }
 

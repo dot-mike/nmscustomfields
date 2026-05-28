@@ -14,10 +14,10 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($customFields as $customField)
+                        @forelse($customFields as $cfd)
                         <tr>
-                            <td><strong>{{ $customField->field_name }}</strong></td>
-                            <td>{{ $customField->field_value }}</td>
+                            <td><strong>{{ $cfd->customField->name }}</strong></td>
+                            <td>{{ $cfd->value }}</td>
                         </tr>
                         @empty
                         <tr>

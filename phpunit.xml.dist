@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         backupGlobals="true"
+         backupStaticProperties="false"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         stopOnFailure="false">
+  <testsuites>
+    <testsuite name="nmscustomfields">
+      <directory>tests</directory>
+      <exclude>tests/bootstrap.php</exclude>
+      <exclude>tests/TestCase.php</exclude>
+    </testsuite>
+  </testsuites>
+  <php>
+    <env name="APP_ENV" value="testing"/>
+    <env name="DB_CONNECTION" value="mysql"/>
+    <env name="CACHE_STORE" value="array"/>
+    <env name="QUEUE_CONNECTION" value="sync"/>
+    <env name="SESSION_DRIVER" value="array"/>
+  </php>
+</phpunit>

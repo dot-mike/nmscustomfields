@@ -5,7 +5,22 @@
 	],
 	"service": "app",
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	"containerUser": "vscode",
 	"remoteUser": "vscode",
+	"features": {
+		"ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+		"ghcr.io/devcontainers/features/github-cli:1": {
+			"installDirectlyFromGitHubRelease": true,
+			"version": "latest"
+		}
+	},
+	"mounts": [
+		"source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
+		"type=bind,source=${localEnv:HOME}/.claude/CLAUDE.md,target=/home/vscode/.claude/CLAUDE.md,readonly",
+		"type=bind,source=${localEnv:HOME}/.claude/commands,target=/home/vscode/.claude/commands,readonly",
+		"type=bind,source=${localEnv:HOME}/.claude/agents,target=/home/vscode/.claude/agents,readonly",
+		"type=bind,source=${localEnv:HOME}/.claude/skills,target=/home/vscode/.claude/skills,readonly"
+	],
 	"remoteEnv": {
 		"PATH": "${containerEnv:PATH}:${containerEnv:LIBRENMS_FOLDER}",
 		"LOCAL_WORKSPACE_FOLDER": "/workspaces/${localWorkspaceFolderBasename}",
@@ -13,7 +28,8 @@
 	},
 	"containerEnv": {
 		"LOCAL_WORKSPACE_FOLDER": "/workspaces/${localWorkspaceFolderBasename}",
-		"LIBRENMS_FOLDER": "/var/www/html/librenms"
+		"LIBRENMS_FOLDER": "/var/www/html/librenms",
+		"CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
 	},
 	"customizations": {
 		"vscode": {
@@ -59,16 +75,16 @@
 							"request": "launch",
 							"envFile": "${containerEnv:LIBRENMS_FOLDER}/.env",
 							"cwd": "${containerEnv:LIBRENMS_FOLDER}",
-							"program": "${containerEnv:LIBRENMS_FOLDER}/artisan",
-							"args": [
-								"serve"
-							],
+							"runtimeExecutable": "/bin/bash",
+							"program": "${workspaceFolder}/.devcontainer/serve-wrapper.sh",
+							"args": [],
 							"port": 9000,
 							"serverReadyAction": {
 								"pattern": "Server running on",
 								"uriFormat": "http://localhost:8000",
 								"action": "openExternally"
-							}
+							},
+							"preLaunchTask": "kill-stale-php-serve"
 						},
 						{
 							"name": "Listen for XDebug",
@@ -108,6 +124,22 @@
 							],
 							"problemMatcher": [],
 							"cwd": "${containerEnv:LIBRENMS_FOLDER}"
+						},
+						{
+							"label": "kill-stale-php-serve",
+							"detail": "Defensive pre-launch cleanup: kills orphaned `php -S 127.0.0.1:*` and `artisan serve` processes left behind by prior debug sessions. Healthy processes are left alone.",
+							"type": "shell",
+							"command": "bash",
+							"args": [
+								"${workspaceFolder}/.devcontainer/kill-stale-php-serve.sh"
+							],
+							"problemMatcher": [],
+							"presentation": {
+								"reveal": "silent",
+								"panel": "dedicated",
+								"close": true,
+								"clear": true
+							}
 						}
 					],
 					"inputs": [
@@ -138,6 +170,6 @@
 			},
 		}
 	},
-	"postCreateCommand": "sudo mkdir -p /var/log/xdebug && sudo chmod -R 777 /var/log/xdebug",
+	"postCreateCommand": "sudo mkdir -p /var/log/xdebug && sudo chmod -R 777 /var/log/xdebug && sudo chown vscode:vscode /home/vscode/.claude",
 	"postStartCommand": "bash .devcontainer/postStart.sh"
 }

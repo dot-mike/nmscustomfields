@@ -32,9 +32,9 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="desc" class="control-label col-sm-3 col-md-2 text-nowrap">Text</label>
+                    <label for="value" class="control-label col-sm-3 col-md-2 text-nowrap">Value</label>
                     <div class="col-sm-9 col-md-10">
-                        <input type="text" class="form-control" id="value" name="value" value="">
+                        <input type="text" class="form-control" id="value" name="value" value="{{ old('value') }}">
                         <span class="help-block"></span>
                     </div>
                 </div>
@@ -57,6 +57,18 @@
         init_select2('#custom_field_id', 'customfield', {}, '', 'Select a field...', {
             ajax: {
                 url: "{!! route('plugin.nmscustomfields.select.customfields', ['filter' => 'unassigned', 'device' => $device->device_id]) !!}",
+            }
+        });
+
+        $('#custom_field_id').on('change', function() {
+            let data = $(this).select2('data')[0];
+            let isInt = data && data.type === 'integer';
+            let $value = $('#value');
+            $value.attr('type', isInt ? 'number' : 'text');
+            if (isInt) {
+                $value.attr('step', '1');
+            } else {
+                $value.removeAttr('step');
             }
         });
     });

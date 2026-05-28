@@ -27,16 +27,17 @@
                 <div class="form-group">
                     <label for="name" class="control-label col-sm-3 col-md-2 text-nowrap">Name</label>
                     <div class="col-sm-9 col-md-10">
-                        <input type="text" class="form-control" name="name" id="name" value="{{ $customfield->name ?? old('name') }}" required="required" autofocus="autofocus">
+                        <input type="text" class="form-control" name="name" id="name" value="{{ old('name', $customfield->name) }}" required="required" autofocus="autofocus">
                         <span class="help-block"></span>
                     </div>
                 </div>
                 <div class="form-group ">
-                    <label for="desc" class="control-label col-sm-3 col-md-2 text-nowrap">Type</label>
+                    <label for="type" class="control-label col-sm-3 col-md-2 text-nowrap">Type</label>
                     <div class="col-sm-9 col-md-10">
+                        @php($selectedType = old('type', $customfield->type))
                         <select class="form-control" id="type" name="type">
-                            <option value="text">Text</option>
-                            <option value="integer">Number</option>
+                            <option value="text" {{ $selectedType === 'text' ? 'selected' : '' }}>Text</option>
+                            <option value="integer" {{ $selectedType === 'integer' ? 'selected' : '' }}>Number</option>
                         </select>
                         <span class="help-block"></span>
                     </div>
