@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# preLaunchTask for the "Launch LibreNMS" debug config. Belt-and-suspenders
-# cleanup of ORPHAN PHP server processes left behind by previous debug
-# sessions (PPID=1, i.e. reparented to init because their parent died
-# without reaping them). Healthy processes still parented to a live
-# `artisan serve` or shell are left alone, so this is safe to run while the
-# user has artisan serve running in an integrated terminal.
 set -uo pipefail
 
 USER_ID="$(id -u)"

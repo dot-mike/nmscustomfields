@@ -5,7 +5,7 @@ x-env-global: &env-global
   - &TZ "UTC"
   - &PUID "1000"
   - &PGID "1000"
-  - &LIBRENMS_VERSION "26.5.1"
+  - &LIBRENMS_VERSION "26.7.0"
 
 x-envlibrenms: &envlibrenms
   MEMORY_LIMIT: "256M"
@@ -47,6 +47,9 @@ services:
 
   db:
     image: mariadb:10.11
+    # app uses network_mode: service:db, so its ports are published here.
+    ports:
+      - "8000:8000"
     command:
       - "mysqld"
       - "--innodb-file-per-table=1"
@@ -72,7 +75,7 @@ services:
       context: snmpsim
     image: snmpsim
     ports:
-      - "1161:1161"
+      - "1161:1161/udp"
     volumes:
       - ./snmpsim/data:/usr/snmpsim/data
     networks:

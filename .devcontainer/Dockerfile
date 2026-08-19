@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/php:1-8.2-bookworm
+FROM mcr.microsoft.com/devcontainers/php:8.3-trixie
 
 COPY php.ini /usr/local/etc/php/conf.d/99-php.ini
 

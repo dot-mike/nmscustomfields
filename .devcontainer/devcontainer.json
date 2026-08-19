@@ -8,6 +8,7 @@
 	"containerUser": "vscode",
 	"remoteUser": "vscode",
 	"features": {
+		"ghcr.io/devcontainers/features/node:1": {},
 		"ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
 		"ghcr.io/devcontainers/features/github-cli:1": {
 			"installDirectlyFromGitHubRelease": true,
@@ -15,11 +16,7 @@
 		}
 	},
 	"mounts": [
-		"source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
-		"type=bind,source=${localEnv:HOME}/.claude/CLAUDE.md,target=/home/vscode/.claude/CLAUDE.md,readonly",
-		"type=bind,source=${localEnv:HOME}/.claude/commands,target=/home/vscode/.claude/commands,readonly",
-		"type=bind,source=${localEnv:HOME}/.claude/agents,target=/home/vscode/.claude/agents,readonly",
-		"type=bind,source=${localEnv:HOME}/.claude/skills,target=/home/vscode/.claude/skills,readonly"
+		"source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume"
 	],
 	"remoteEnv": {
 		"PATH": "${containerEnv:PATH}:${containerEnv:LIBRENMS_FOLDER}",

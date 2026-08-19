@@ -46,13 +46,14 @@ echo \$config[\'password.min_length\'] = 1\; | tee -a config.php
 
 echo "Setting up librenms"
 
-# seed the database
-php artisan db:seed --force
-
 # load .env as environment variables
 # .env does not work for some reason
 export $(grep -v '^#' .env | xargs)
 php lnms --force -n migrate || true
+
+# seed the database after migrating, roles do not exist until the tables do
+php artisan db:seed --force
+
 php lnms -n user:add -p librenms -r admin -n librenms >/dev/null || true # add user if not exists
 php lnms -n user:add -p admin -r admin -n admin >/dev/null || true # add user if not exists
 
