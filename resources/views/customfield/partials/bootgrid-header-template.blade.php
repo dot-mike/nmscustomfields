@@ -1,5 +1,5 @@
 <div id="@{{ctx.id}}" class="@{{css.header}} row">
-    <div class="col-sm-12 col-md-8">
+    <div class="col-sm-12 col-md-7">
         <form method="post" role="form" id="device_filter" class="form device-customfields-table-headers-table-menu">
             {!! csrf_field() !!}
 
@@ -34,14 +34,12 @@
         </form>
     </div>
 
-    <div class="col-sm-12 col-md-4">
-        <div class="actionBar">
-            <div style="margin-bottom: 10px;">
-                <button id="device-add-btn" class="btn btn-primary"><i class="fa fa-plus"></i> Add device</button>
-                <button id="bulk-edit-btn" class="btn btn-primary" disabled><i class="fa fa-pencil"></i> Bulk Edit</button>
-                <button id="bulk-delete-btn" class="btn btn-danger" disabled><i class="fa fa-trash"></i> Bulk Delete</button>
-            </div>
-            <div class="@{{css.actions}}" style="clear: both;"></div>
+    <div class="col-sm-12 col-md-5">
+        <div class="actionBar" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; align-items: center;">
+            <button id="device-add-btn" class="btn btn-primary"><i class="fa fa-plus"></i> Add device</button>
+            <button id="bulk-edit-btn" class="btn btn-primary" disabled><i class="fa fa-pencil"></i> Bulk Edit</button>
+            <button id="bulk-delete-btn" class="btn btn-danger" disabled><i class="fa fa-trash"></i> Bulk Delete</button>
+            <div class="@{{css.actions}}" style="flex-basis: 100%; display: flex; justify-content: flex-end; gap: 8px;"></div>
         </div>
     </div>
 </div>
