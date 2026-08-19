@@ -5,6 +5,7 @@ namespace DotMike\NmsCustomFields\Providers;
 
 use DotMike\NmsCustomFields\Hooks\MenuEntry;
 use DotMike\NmsCustomFields\Hooks\DeviceOverview;
+use DotMike\NmsCustomFields\Hooks\QueryBuilderFilter;
 
 use LibreNMS\Interfaces\Plugins\PluginManagerInterface;
 use LibreNMS\Interfaces\Plugins\Hooks\MenuEntryHook;
@@ -39,6 +40,12 @@ class CustomFieldsProvider extends ServiceProvider
         $pluginName = 'nmscustomfields';
         $pluginManager->publishHook($pluginName, MenuEntryHook::class, MenuEntry::class);
         $pluginManager->publishHook($pluginName, DeviceOverviewHook::class, DeviceOverview::class);
+
+        // alert rule / device group filters, requires the QueryBuilderFilterHook core patch (see patches/)
+        if (interface_exists(\LibreNMS\Interfaces\Plugins\Hooks\QueryBuilderFilterHook::class)
+            && class_exists(\App\Plugins\Hooks\QueryBuilderFilterHook::class)) {
+            $pluginManager->publishHook($pluginName, \LibreNMS\Interfaces\Plugins\Hooks\QueryBuilderFilterHook::class, QueryBuilderFilter::class);
+        }
 
         // if plugin is disabled, don't boot it
         if (! $pluginManager->pluginEnabled($pluginName)) {

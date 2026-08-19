@@ -65,6 +65,12 @@ The `value` field returned by the API is typed: integers come back as JSON numbe
 
 Navigate to a device page and you will see the custom fields section where you will find a link to edit the custom fields for the device.
 
+### Alert rules and device groups
+
+Custom fields can be used in the alert rule / device group query builder, listed as
+`Custom Field: <name>`. Each field becomes a correlated subquery, so a rule like
+`Custom Field: site` `equal` `Berlin` matches devices that has custom field `site` with value equal to `Berlin`.
+
 ## Screenshots
 
 ![Edit Custom Fields](/screenshots/edit-custom-fields.png?raw=true)
