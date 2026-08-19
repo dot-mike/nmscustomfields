@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-08-19
+
+### Changed
+- Table search matches whole words, so `ampere` no longer matches `deciAmpere`. Use `*` as a wildcard for the old substring behaviour: `amp*`, `*ampere*`, `pdu*timeout`.
+- CSV export now uses LibreNMS' own bootgrid export (the download dropdown in the table toolbar) instead of a plugin-specific button.
+- Tidied the toolbar layout on the per-field devices page.
+
 ## [2.0.0] - 2026-05-27
 
 **Requires LibreNMS 26.5+.**
