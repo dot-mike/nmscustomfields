@@ -1,6 +1,6 @@
 <div id="@{{ctx.id}}" class="@{{css.header}} row">
     <div class="col-sm-12 col-md-8">
-        <form method="post" role="form" id="device_filter" class="form">
+        <form method="post" role="form" id="device_filter" class="form device-customfields-table-headers-table-menu">
             {!! csrf_field() !!}
 
             <div class="row mb-2">
@@ -20,11 +20,15 @@
                 <div class="col-sm-9 form-group">
                     <label for="global_search">Search</label>
                     <div class="input-group">
-                        <input type="text" class="form-control" id="global_search" name="global_search" placeholder="Search hostname, sysName or field value">
+                        <input type="text" class="form-control" id="global_search" name="searchPhrase" placeholder="Search hostname, sysName or field value" title="Whole words only. Use * as a wildcard, for example amp* or pdu*timeout.">
                         <span class="input-group-btn">
                             <button type="submit" class="btn btn-primary"><i class="fa fa-search"></i> @lang('Search')</button>
                         </span>
                     </div>
+                    <span class="help-block">
+                        Whole words only. <code>ampere</code> does not match <code>deciAmpere</code>.
+                        Use <code>*</code> as a wildcard: <code>amp*</code>, <code>*ampere*</code>, <code>pdu*timeout</code>.
+                    </span>
                 </div>
             </div>
         </form>
@@ -36,7 +40,6 @@
                 <button id="device-add-btn" class="btn btn-primary"><i class="fa fa-plus"></i> Add device</button>
                 <button id="bulk-edit-btn" class="btn btn-primary" disabled><i class="fa fa-pencil"></i> Bulk Edit</button>
                 <button id="bulk-delete-btn" class="btn btn-danger" disabled><i class="fa fa-trash"></i> Bulk Delete</button>
-                <button id="export-csv-btn" class="btn btn-success"><i class="fa fa-download"></i> Export CSV</button>
             </div>
             <div class="@{{css.actions}}" style="clear: both;"></div>
         </div>
